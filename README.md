@@ -38,12 +38,12 @@ python3 main.py
 | Tuş | Görev |
 |-----|-------|
 | `d` | Döndür düğmesi |
-| `+` / `-` | Güvenli bölgeyi büyüt / küçült |
-| Ok tuşları | Güvenli bölgeyi taşı |
+| `+` / `-` ya da `b` / `v` | Güvenli bölgeyi büyüt / küçült |
+| Ok tuşları ya da `i` `m` `j` `l` | Güvenli bölgeyi yukarı / aşağı / sola / sağa taşı |
 | `k` | Bölgeyi `zone.json` dosyasına kaydet (açılışta otomatik yüklenir) |
 | `q` | Çıkış |
 
-Tuşlar terminale gider; önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın. Loglar `logs/platform.log` dosyasına da yazılır.
+Bağlı olmayan bir tuşa basılırsa terminalde `Tanımsız tuş geldi: '…'` yazar; bir tuş çalışmıyorsa ne gönderdiğini buradan görüp `KeyboardConfig` içine ekleyebilirsiniz. Tuşlar terminale gider; önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın. Loglar `logs/platform.log` dosyasına da yazılır.
 
 ## Bağlantı (varsayılan, BCM)
 Kırmızı LED → GPIO17, beyaz LED → GPIO27, buzzer → GPIO22 (LED'lere seri direnç unutmayın). `config.py` → `GpioConfig` ile değiştirilebilir.

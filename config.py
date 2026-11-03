@@ -51,9 +51,15 @@ class MotorConfig:
 class KeyboardConfig:
     rotate_key: str = "d"
     quit_key: str = "q"
-    grow_key: str = "+"
-    shrink_key: str = "-"
     save_zone_key: str = "k"   # kaydet
+    # Bölge ayar tuşları. Her işlem için birden fazla tuş verilebilir; harfler,
+    # Pi'nin klavye düzeni Türkçe klavyeyle uyuşmasa da çalışsın diye var.
+    grow_keys: tuple[str, ...] = ("+", "=", "b")    # b = büyüt
+    shrink_keys: tuple[str, ...] = ("-", "_", "v")  # v = küçült
+    up_keys: tuple[str, ...] = ("UP", "i")
+    down_keys: tuple[str, ...] = ("DOWN", "m")
+    left_keys: tuple[str, ...] = ("LEFT", "j")
+    right_keys: tuple[str, ...] = ("RIGHT", "l")
 
 
 @dataclass(frozen=True)

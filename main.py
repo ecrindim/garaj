@@ -1,13 +1,15 @@
 """Araç döndürme platformu (basit sürüm) giriş noktası.
 
 Kullanım:  python3 main.py
-Tuşlar  :  d = döndür, q = çıkış
-           + / - = bölgeyi büyüt / küçült, ok tuşları = taşı, k = kaydet
+Tuşlar  :  d = döndür, q = çıkış, k = bölgeyi kaydet
+           + / - (ya da b / v) = bölgeyi büyüt / küçült
+           ok tuşları (ya da i / j / l / m) = bölgeyi taşı
 """
 from __future__ import annotations
 
 import logging
 import threading
+from typing import Callable
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -61,17 +63,23 @@ def build_key_bindings(
     keys = config.keyboard
     move = config.safety.zone_move_step
     resize = config.safety.zone_resize_step
-    return {
+    bindings: dict[str, Callable[[], None]] = {
         keys.rotate_key: button.press,
         keys.quit_key: quit_event.set,
-        keys.grow_key: lambda: zone_store.resize(+resize),
-        keys.shrink_key: lambda: zone_store.resize(-resize),
-        "UP": lambda: zone_store.move(0, -move),
-        "DOWN": lambda: zone_store.move(0, +move),
-        "LEFT": lambda: zone_store.move(-move, 0),
-        "RIGHT": lambda: zone_store.move(+move, 0),
         keys.save_zone_key: zone_store.save,
     }
+    zone_actions = [
+        (keys.grow_keys, lambda: zone_store.resize(+resize)),
+        (keys.shrink_keys, lambda: zone_store.resize(-resize)),
+        (keys.up_keys, lambda: zone_store.move(0, -move)),
+        (keys.down_keys, lambda: zone_store.move(0, +move)),
+        (keys.left_keys, lambda: zone_store.move(-move, 0)),
+        (keys.right_keys, lambda: zone_store.move(+move, 0)),
+    ]
+    for key_group, action in zone_actions:
+        for key in key_group:
+            bindings[key] = action
+    return bindings
 
 
 def build_indicator(config: AppConfig):
@@ -97,9 +105,15 @@ def print_help(config: AppConfig) -> None:
     keys = config.keyboard
     print(
         f"'{keys.rotate_key}' = döndür | '{keys.quit_key}' = çıkış | "
-        f"'{keys.grow_key}'/'{keys.shrink_key}' = bölgeyi büyüt/küçült | "
-        f"ok tuşları = bölgeyi taşı | '{keys.save_zone_key}' = bölgeyi kaydet"
+        f"'{keys.save_zone_key}' = bölgeyi kaydet\n"
+        f"Büyüt: {_join(keys.grow_keys)} | Küçült: {_join(keys.shrink_keys)}\n"
+        f"Taşı: yukarı {_join(keys.up_keys)}, aşağı {_join(keys.down_keys)}, "
+        f"sol {_join(keys.left_keys)}, sağ {_join(keys.right_keys)}"
     )
+
+
+def _join(keys: tuple[str, ...]) -> str:
+    return " / ".join(keys)
 
 
 def main() -> None:
