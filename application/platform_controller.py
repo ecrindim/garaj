@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Callable
 
+from application.fps_meter import FpsMeter
 from application.ports import (
     CommandButton,
     ObjectDetector,
@@ -27,6 +28,7 @@ class PlatformController:
         button: CommandButton,
         indicator: StatusIndicator,
         display: StatusDisplay,
+        fps_meter: FpsMeter,
     ) -> None:
         self._detector = detector
         self._safety = safety_checker
@@ -34,6 +36,7 @@ class PlatformController:
         self._button = button
         self._indicator = indicator
         self._display = display
+        self._fps_meter = fps_meter
         self._state = PlatformState.IDLE
         self._rotate_command = 0
 
@@ -45,6 +48,7 @@ class PlatformController:
 
     def step(self) -> None:
         detections = self._detector.read_detections()
+        fps = self._fps_meter.tick()
         report = self._safety.evaluate(detections)
         button_pressed = self._button.was_pressed()
 
@@ -54,7 +58,7 @@ class PlatformController:
             self._handle_rotating(button_pressed, report)
 
         self._display.update(
-            StatusSnapshot(self._state, button_pressed, self._rotate_command, report, detections)
+            StatusSnapshot(self._state, button_pressed, self._rotate_command, report, detections, fps)
         )
 
     def _handle_idle(self, button_pressed: bool, report: SafetyReport) -> None:
@@ -67,8 +71,11 @@ class PlatformController:
             logger.warning("Döndürme reddedildi: %s", report.status.value)
 
     def _handle_rotating(self, button_pressed: bool, report: SafetyReport) -> None:
+        # Dönüş başladıktan sonra araç konumu kontrol edilmez: araç dönerken
+        # kamera kutusu büyüyüp daireden taşabilir. Sadece canlı kontrolü yapılır.
         if button_pressed:
             logger.info("Platform zaten dönüyor, düğme yok sayıldı.")
+
         if report.living_nearby:
             logger.warning("Dönüş sırasında canlı algılandı, platform durduruluyor!")
             self._stop_rotation()

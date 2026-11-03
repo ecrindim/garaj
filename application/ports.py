@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol, Sequence
+from typing import Optional, Protocol, Sequence
 
 from domain.detection import Detection
 from domain.safety import SafetyReport
+from domain.zones import CircularZone
 
 
 class PlatformState(Enum):
@@ -25,6 +26,7 @@ class StatusSnapshot:
     rotate_command: int
     safety: SafetyReport
     detections: Sequence[Detection]
+    fps: float
 
 
 class ObjectDetector(Protocol):
@@ -48,3 +50,8 @@ class StatusIndicator(Protocol):
 
 class StatusDisplay(Protocol):
     def update(self, snapshot: StatusSnapshot) -> None: ...
+
+
+class ZoneRepository(Protocol):
+    def load(self) -> Optional[CircularZone]: ...
+    def save(self, zone: CircularZone) -> None: ...

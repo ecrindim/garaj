@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Sequence
 
 from domain.detection import Detection
-from domain.geometry import BoundingBox
+from domain.zones import ZoneProvider
 
 
 class SafetyStatus(Enum):
@@ -29,29 +29,34 @@ class SafetyStatus(Enum):
 class SafetyReport:
     status: SafetyStatus
     vehicle_on_platform: bool
+    vehicle_crossing: bool
     living_nearby: bool
 
     @property
     def is_safe(self) -> bool:
         return self.status is SafetyStatus.SAFE
 
+    @property
+    def vehicle_secure(self) -> bool:
+        """Araç bölgenin içinde ve hiçbir araç sınırı aşmıyor."""
+        return self.vehicle_on_platform and not self.vehicle_crossing
+
 
 class SafetyChecker:
-    def __init__(self, safe_zone: BoundingBox) -> None:
-        self._safe_zone = safe_zone
-
-    @property
-    def safe_zone(self) -> BoundingBox:
-        return self._safe_zone
+    def __init__(self, zone_provider: ZoneProvider) -> None:
+        self._zone_provider = zone_provider
 
     def evaluate(self, detections: Sequence[Detection]) -> SafetyReport:
+        zone = self._zone_provider.current_zone()
         vehicles = [d for d in detections if d.is_vehicle]
         living_nearby = self.is_living_nearby(detections)
-        vehicle_on_platform = any(self._is_fully_inside(v) for v in vehicles)
-        vehicle_crossing = any(self._is_crossing_boundary(v) for v in vehicles)
+        vehicle_on_platform = any(zone.contains_box(v.box) for v in vehicles)
+        vehicle_crossing = any(
+            zone.intersects_box(v.box) and not zone.contains_box(v.box) for v in vehicles
+        )
 
         status = self._decide_status(living_nearby, vehicle_crossing, vehicle_on_platform)
-        return SafetyReport(status, vehicle_on_platform, living_nearby)
+        return SafetyReport(status, vehicle_on_platform, vehicle_crossing, living_nearby)
 
     def is_living_nearby(self, detections: Sequence[Detection]) -> bool:
         vehicles = [d for d in detections if d.is_vehicle]
@@ -67,12 +72,6 @@ class SafetyChecker:
         if not vehicle_on_platform:
             return SafetyStatus.NO_VEHICLE_ON_PLATFORM
         return SafetyStatus.SAFE
-
-    def _is_fully_inside(self, vehicle: Detection) -> bool:
-        return self._safe_zone.contains_box(vehicle.box)
-
-    def _is_crossing_boundary(self, vehicle: Detection) -> bool:
-        return self._safe_zone.intersects(vehicle.box) and not self._is_fully_inside(vehicle)
 
     @staticmethod
     def _is_inside_any_vehicle(living: Detection, vehicles: Sequence[Detection]) -> bool:

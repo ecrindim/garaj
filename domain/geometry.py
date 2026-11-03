@@ -35,6 +35,15 @@ class BoundingBox:
     def center(self) -> Point:
         return Point((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
 
+    @property
+    def corners(self) -> tuple[Point, Point, Point, Point]:
+        return (
+            Point(self.x1, self.y1),
+            Point(self.x2, self.y1),
+            Point(self.x1, self.y2),
+            Point(self.x2, self.y2),
+        )
+
     def contains_box(self, other: BoundingBox) -> bool:
         """`other` kutusu tamamen bu kutunun içinde mi?"""
         return (

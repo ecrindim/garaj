@@ -4,8 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from domain.geometry import BoundingBox
-
 
 @dataclass(frozen=True)
 class CameraConfig:
@@ -16,13 +14,20 @@ class CameraConfig:
     labels_path: Optional[str] = None          # Model etiket içermiyorsa COCO etiket dosyası
     ignore_dash_labels: Optional[bool] = None  # Etiketler kayıksa True/False deneyin
     confidence_threshold: float = 0.55
+    frame_size: tuple[int, int] = (640, 480)  # Ana görüntü (genişlik, yükseklik)
     show_preview: bool = True                  # Ekran yoksa (SSH) False yapın
 
 
 @dataclass(frozen=True)
 class SafetyConfig:
-    # Güvenli bölge, normalize koordinatlar: (x1, y1) sol-üst, (x2, y2) sağ-alt
-    safe_zone: BoundingBox = field(default_factory=lambda: BoundingBox(0.20, 0.15, 0.80, 0.90))
+    # Yuvarlak güvenli bölgenin VARSAYILAN değerleri (zone_file yoksa kullanılır).
+    # Merkez normalize (0..1) koordinatlarda, yarıçap görüntü yüksekliğine oranlı.
+    zone_center_x: float = 0.50
+    zone_center_y: float = 0.50
+    zone_radius: float = 0.40
+    zone_file: str = "zone.json"   # Klavyeden ayarlanıp kaydedilen bölge
+    zone_move_step: float = 0.01   # Ok tuşlarıyla her basışta kayma miktarı
+    zone_resize_step: float = 0.01 # +/- ile her basışta yarıçap değişimi
     # Sadece bu etiketler dikkate alınır; diğer tüm nesneler yok sayılır.
     vehicle_labels: frozenset[str] = frozenset({"car"})
     living_labels: frozenset[str] = frozenset({"person", "cat", "dog"})
@@ -46,6 +51,9 @@ class MotorConfig:
 class KeyboardConfig:
     rotate_key: str = "d"
     quit_key: str = "q"
+    grow_key: str = "+"
+    shrink_key: str = "-"
+    save_zone_key: str = "k"   # kaydet
 
 
 @dataclass(frozen=True)

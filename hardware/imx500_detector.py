@@ -89,7 +89,7 @@ class Imx500Detector:
 
     def _start_camera(self, frame_callback: Optional[FrameCallback]) -> None:
         camera_config = self._picam2.create_preview_configuration(
-            main={"format": "XRGB8888"},  # OpenCV ile aynı BGR sırası
+            main={"size": self._config.frame_size, "format": "XRGB8888"},  # BGR: OpenCV ile uyumlu
             controls={"FrameRate": self._intrinsics.inference_rate},
             buffer_count=12,
         )

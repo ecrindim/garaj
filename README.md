@@ -4,10 +4,10 @@ Raspberry Pi 5 + Raspberry Pi AI Camera (IMX500). Nesne tespiti kameranın kendi
 
 ## Kurallar
 Düğmeye (`d` tuşu) basıldığında platform yalnızca şu durumda döner (DÖNDÜR KOMUTU = 1):
-- Araç kutusu güvenli bölgenin **tamamen içindeyse** (sınırla çakışan ya da dışarıdaki araç → döndürme yok)
+- Araç kutusu **yuvarlak** güvenli bölgenin **tamamen içindeyse** (sınırla çakışan ya da dışarıdaki araç → döndürme yok)
 - Çevrede canlı (insan, kedi, köpek) yoksa (merkezi araç kutusunun içinde kalanlar araç içi sayılıp yok sayılır)
 
-Dönüş sırasında canlı algılanırsa platform durur. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
+Tek basış dönüşü başlatır (basılı tutmak gerekmez); motor `rotation_seconds` süresi dolunca durur. Dönüş sırasında canlı algılanırsa platform hemen durur. Dönüş başladıktan sonra araç konumu kontrol edilmez (dönen aracın kutusu daireden taşabileceği için). FPS hem konsolda hem önizlemede gösterilir. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
 
 | Durum   | Kırmızı LED | Beyaz LED | Buzzer  |
 |---------|-------------|-----------|---------|
@@ -16,9 +16,9 @@ Dönüş sırasında canlı algılanırsa platform durur. Sadece `car`, `person`
 
 ## Klasör yapısı
 ```
-domain/        İş kuralları (donanımdan bağımsız): geometri, tespit, güvenlik
-application/   Arayüzler (ports) ve kontrolcü (durum makinesi)
-hardware/      AI Camera, klavye-düğme, simüle motor, LED/buzzer
+domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
+application/   Arayüzler (ports), kontrolcü, ayarlanabilir bölge, FPS ölçer
+hardware/      AI Camera, klavye dinleyici, simüle düğme/motor, LED/buzzer, bölge kaydı
 presentation/  Konsol çıktısı ve önizleme çizimi
 config.py      Tüm ayarlar (güvenli bölge, pinler, eşikler)
 main.py        Bileşenleri bağlayan giriş noktası
@@ -35,15 +35,23 @@ Sanal ortam kullanılacaksa picamera2 sistem paketinden geldiği için `python3 
 ```bash
 python3 main.py
 ```
-`d` = döndür, `q` = çıkış. Loglar `logs/platform.log` dosyasına da yazılır.
+| Tuş | Görev |
+|-----|-------|
+| `d` | Döndür düğmesi |
+| `+` / `-` | Güvenli bölgeyi büyüt / küçült |
+| Ok tuşları | Güvenli bölgeyi taşı |
+| `k` | Bölgeyi `zone.json` dosyasına kaydet (açılışta otomatik yüklenir) |
+| `q` | Çıkış |
+
+Tuşlar terminale gider; önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın. Loglar `logs/platform.log` dosyasına da yazılır.
 
 ## Bağlantı (varsayılan, BCM)
 Kırmızı LED → GPIO17, beyaz LED → GPIO27, buzzer → GPIO22 (LED'lere seri direnç unutmayın). `config.py` → `GpioConfig` ile değiştirilebilir.
 
 ## Ayarlanacaklar
-- `SafetyConfig.safe_zone`: Güvenli bölge, 0–1 arası normalize koordinatlar. Önizlemede çizilen yeşil/kırmızı dikdörtgene bakarak platforma oturtun.
+- Güvenli bölge: Çalışırken klavyeyle ayarlayıp `k` ile kaydedin. `zone.json` yoksa `SafetyConfig` içindeki varsayılan merkez/yarıçap kullanılır. Adım büyüklükleri `zone_move_step` ve `zone_resize_step`.
 - `CameraConfig.show_preview`: Monitör yoksa (SSH) `False`.
 - `MotorConfig.rotation_seconds`: Simüle dönüş süresi.
 
 ## Gerçek donanıma geçiş
-`application/ports.py` içindeki `RotationMotor` ve `CommandButton` arayüzlerini uygulayan yeni sınıflar yazıp `main.py` içinde `SimulatedMotor` ve `KeyboardButton` yerine verin; diğer kodlar değişmez.
+`application/ports.py` içindeki `RotationMotor` ve `CommandButton` arayüzlerini uygulayan yeni sınıflar yazıp `main.py` içinde `SimulatedMotor` ve `SimulatedButton` yerine verin; diğer kodlar değişmez.
