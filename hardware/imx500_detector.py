@@ -12,7 +12,7 @@ from picamera2.devices import IMX500
 from picamera2.devices.imx500 import NetworkIntrinsics
 
 from config import CameraConfig
-from domain.detection import Detection, LabelClassifier
+from domain.detection import Detection, LabelClassifier, ObjectCategory
 from domain.geometry import BoundingBox
 
 logger = logging.getLogger(__name__)
@@ -119,10 +119,14 @@ class Imx500Detector:
             return None
 
         label = self._labels[class_id] if 0 <= class_id < len(self._labels) else "unknown"
+        category = self._classifier.categorize(label)
+        if category is ObjectCategory.OTHER:
+            return None  # Araç ve canlı dışındaki nesneler yok sayılır
+
         normalized_box = BoundingBox.from_xywh(
             x / self._frame_width,
             y / self._frame_height,
             width / self._frame_width,
             height / self._frame_height,
         )
-        return Detection(label, self._classifier.categorize(label), score, normalized_box)
+        return Detection(label, category, score, normalized_box)

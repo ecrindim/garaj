@@ -9,7 +9,7 @@ from domain.geometry import BoundingBox
 
 class ObjectCategory(Enum):
     VEHICLE = "araç"
-    PERSON = "insan"
+    LIVING = "canlı"
     OTHER = "diğer"
 
 
@@ -25,20 +25,20 @@ class Detection:
         return self.category is ObjectCategory.VEHICLE
 
     @property
-    def is_person(self) -> bool:
-        return self.category is ObjectCategory.PERSON
+    def is_living(self) -> bool:
+        return self.category is ObjectCategory.LIVING
 
 
 class LabelClassifier:
-    """Modelin ham etiketini (car, truck, person...) kategoriye çevirir."""
+    """Modelin ham etiketini (car, person, cat, dog...) kategoriye çevirir."""
 
-    def __init__(self, vehicle_labels: frozenset[str], person_labels: frozenset[str]) -> None:
+    def __init__(self, vehicle_labels: frozenset[str], living_labels: frozenset[str]) -> None:
         self._vehicle_labels = vehicle_labels
-        self._person_labels = person_labels
+        self._living_labels = living_labels
 
     def categorize(self, label: str) -> ObjectCategory:
         if label in self._vehicle_labels:
             return ObjectCategory.VEHICLE
-        if label in self._person_labels:
-            return ObjectCategory.PERSON
+        if label in self._living_labels:
+            return ObjectCategory.LIVING
         return ObjectCategory.OTHER

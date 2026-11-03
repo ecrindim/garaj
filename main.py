@@ -55,7 +55,7 @@ def main() -> None:
     config = AppConfig()
     configure_logging(config.log_file)
 
-    classifier = LabelClassifier(config.safety.vehicle_labels, config.safety.person_labels)
+    classifier = LabelClassifier(config.safety.vehicle_labels, config.safety.living_labels)
     safety_checker = SafetyChecker(config.safety.safe_zone)
     display, overlay = build_displays(config)
 

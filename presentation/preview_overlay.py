@@ -14,13 +14,11 @@ from domain.geometry import BoundingBox
 GREEN = (0, 200, 0, 255)
 RED = (0, 0, 230, 255)
 ORANGE = (0, 140, 255, 255)
-GRAY = (160, 160, 160, 255)
 WHITE = (255, 255, 255, 255)
 
 CATEGORY_COLORS = {
     ObjectCategory.VEHICLE: ORANGE,
-    ObjectCategory.PERSON: RED,
-    ObjectCategory.OTHER: GRAY,
+    ObjectCategory.LIVING: RED,
 }
 
 

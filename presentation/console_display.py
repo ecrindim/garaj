@@ -20,9 +20,9 @@ class ConsoleDisplay:
     def _format(snapshot: StatusSnapshot) -> str:
         button = "BASILDI" if snapshot.button_pressed else "basılmadı"
         vehicle = "platformda" if snapshot.safety.vehicle_on_platform else "yok/sınır dışı"
-        person = "VAR" if snapshot.safety.person_nearby else "yok"
+        living = "VAR" if snapshot.safety.living_nearby else "yok"
         return (
             f"Düğme: {button:<9} | Motor: {snapshot.state.value:<7} | "
             f"Komut: {snapshot.rotate_command} | Araç: {vehicle:<14} | "
-            f"İnsan: {person:<3} | {snapshot.safety.status.value}"
+            f"Canlı: {living:<3} | {snapshot.safety.status.value}"
         )

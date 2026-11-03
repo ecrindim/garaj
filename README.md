@@ -5,9 +5,9 @@ Raspberry Pi 5 + Raspberry Pi AI Camera (IMX500). Nesne tespiti kameranın kendi
 ## Kurallar
 Düğmeye (`d` tuşu) basıldığında platform yalnızca şu durumda döner (DÖNDÜR KOMUTU = 1):
 - Araç kutusu güvenli bölgenin **tamamen içindeyse** (sınırla çakışan ya da dışarıdaki araç → döndürme yok)
-- Çevrede insan yoksa (merkezi araç kutusunun içinde kalan insanlar araç içi sayılıp yok sayılır)
+- Çevrede canlı (insan, kedi, köpek) yoksa (merkezi araç kutusunun içinde kalanlar araç içi sayılıp yok sayılır)
 
-Dönüş sırasında insan algılanırsa platform durur.
+Dönüş sırasında canlı algılanırsa platform durur. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
 
 | Durum   | Kırmızı LED | Beyaz LED | Buzzer  |
 |---------|-------------|-----------|---------|

@@ -69,8 +69,8 @@ class PlatformController:
     def _handle_rotating(self, button_pressed: bool, report: SafetyReport) -> None:
         if button_pressed:
             logger.info("Platform zaten dönüyor, düğme yok sayıldı.")
-        if report.person_nearby:
-            logger.warning("Dönüş sırasında insan algılandı, platform durduruluyor!")
+        if report.living_nearby:
+            logger.warning("Dönüş sırasında canlı algılandı, platform durduruluyor!")
             self._stop_rotation()
         elif self._motor.is_rotation_complete():
             logger.info("Döndürme tamamlandı.")

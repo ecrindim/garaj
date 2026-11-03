@@ -1,12 +1,12 @@
 """Döndürmenin güvenli olup olmadığına karar veren iş kuralları.
 
 Kurallar:
-  1. Platformun çevresinde (araç içi hariç) insan varsa döndürme yok.
+  1. Platformun çevresinde (araç içi hariç) canlı (insan, kedi, köpek) varsa döndürme yok.
   2. Bir araç güvenli bölgeyle çakışıyor ama tamamen içinde değilse döndürme yok.
   3. Güvenli bölgenin tamamen içinde en az bir araç yoksa döndürme yok.
 
-Araç içindeki insanları ayırt edemediğimiz için, merkezi bir aracın
-kutusu içinde kalan insan tespitleri yok sayılır.
+Araç içindeki canlıları ayırt edemediğimiz için, merkezi bir aracın
+kutusu içinde kalan canlı tespitleri yok sayılır.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from domain.geometry import BoundingBox
 
 class SafetyStatus(Enum):
     SAFE = "Güvenli, döndürülebilir"
-    PERSON_NEARBY = "Platform çevresinde insan var"
+    LIVING_NEARBY = "Platform çevresinde canlı var"
     VEHICLE_CROSSING_BOUNDARY = "Araç güvenli bölge sınırını aşıyor"
     NO_VEHICLE_ON_PLATFORM = "Güvenli bölgede araç yok"
 
@@ -29,7 +29,7 @@ class SafetyStatus(Enum):
 class SafetyReport:
     status: SafetyStatus
     vehicle_on_platform: bool
-    person_nearby: bool
+    living_nearby: bool
 
     @property
     def is_safe(self) -> bool:
@@ -46,22 +46,22 @@ class SafetyChecker:
 
     def evaluate(self, detections: Sequence[Detection]) -> SafetyReport:
         vehicles = [d for d in detections if d.is_vehicle]
-        person_nearby = self.is_person_nearby(detections)
+        living_nearby = self.is_living_nearby(detections)
         vehicle_on_platform = any(self._is_fully_inside(v) for v in vehicles)
         vehicle_crossing = any(self._is_crossing_boundary(v) for v in vehicles)
 
-        status = self._decide_status(person_nearby, vehicle_crossing, vehicle_on_platform)
-        return SafetyReport(status, vehicle_on_platform, person_nearby)
+        status = self._decide_status(living_nearby, vehicle_crossing, vehicle_on_platform)
+        return SafetyReport(status, vehicle_on_platform, living_nearby)
 
-    def is_person_nearby(self, detections: Sequence[Detection]) -> bool:
+    def is_living_nearby(self, detections: Sequence[Detection]) -> bool:
         vehicles = [d for d in detections if d.is_vehicle]
-        persons = [d for d in detections if d.is_person]
-        return any(not self._is_inside_any_vehicle(p, vehicles) for p in persons)
+        living = [d for d in detections if d.is_living]
+        return any(not self._is_inside_any_vehicle(l, vehicles) for l in living)
 
     @staticmethod
-    def _decide_status(person_nearby: bool, vehicle_crossing: bool, vehicle_on_platform: bool) -> SafetyStatus:
-        if person_nearby:
-            return SafetyStatus.PERSON_NEARBY
+    def _decide_status(living_nearby: bool, vehicle_crossing: bool, vehicle_on_platform: bool) -> SafetyStatus:
+        if living_nearby:
+            return SafetyStatus.LIVING_NEARBY
         if vehicle_crossing:
             return SafetyStatus.VEHICLE_CROSSING_BOUNDARY
         if not vehicle_on_platform:
@@ -75,5 +75,5 @@ class SafetyChecker:
         return self._safe_zone.intersects(vehicle.box) and not self._is_fully_inside(vehicle)
 
     @staticmethod
-    def _is_inside_any_vehicle(person: Detection, vehicles: Sequence[Detection]) -> bool:
-        return any(v.box.contains_point(person.box.center) for v in vehicles)
+    def _is_inside_any_vehicle(living: Detection, vehicles: Sequence[Detection]) -> bool:
+        return any(v.box.contains_point(living.box.center) for v in vehicles)

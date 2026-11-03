@@ -23,8 +23,9 @@ class CameraConfig:
 class SafetyConfig:
     # Güvenli bölge, normalize koordinatlar: (x1, y1) sol-üst, (x2, y2) sağ-alt
     safe_zone: BoundingBox = field(default_factory=lambda: BoundingBox(0.20, 0.15, 0.80, 0.90))
-    vehicle_labels: frozenset[str] = frozenset({"car", "truck", "bus", "motorcycle"})
-    person_labels: frozenset[str] = frozenset({"person"})
+    # Sadece bu etiketler dikkate alınır; diğer tüm nesneler yok sayılır.
+    vehicle_labels: frozenset[str] = frozenset({"car"})
+    living_labels: frozenset[str] = frozenset({"person", "cat", "dog"})
 
 
 @dataclass(frozen=True)
