@@ -32,6 +32,12 @@ class GpioStatusIndicator:
             off_time=self._config.buzzer_off_seconds,
         )
 
+    def show_emergency(self) -> None:
+        self._white_led.off()
+        self._red_led.blink(on_time=self._config.emergency_blink_seconds,
+                            off_time=self._config.emergency_blink_seconds)
+        self._buzzer.on()  # Sürekli öter
+
     def close(self) -> None:
         for device in (self._buzzer, self._white_led, self._red_led):
             device.off()
@@ -46,6 +52,9 @@ class ConsoleStatusIndicator:
 
     def show_rotating(self) -> None:
         logger.info("[GÖSTERGE] Kırmızı LED kapalı | Beyaz LED AÇIK | Buzzer ÖTÜYOR")
+
+    def show_emergency(self) -> None:
+        logger.info("[GÖSTERGE] Kırmızı LED YANIP SÖNÜYOR | Beyaz LED kapalı | Buzzer SÜREKLİ")
 
     def close(self) -> None:
         pass

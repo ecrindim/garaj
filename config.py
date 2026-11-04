@@ -40,17 +40,39 @@ class GpioConfig:
     buzzer_pin: int = 22
     buzzer_on_seconds: float = 0.4
     buzzer_off_seconds: float = 0.4
+    emergency_blink_seconds: float = 0.15  # Acil durumda kırmızı LED hızlı yanıp söner
 
 
 @dataclass(frozen=True)
 class MotorConfig:
-    rotation_seconds: float = 6.0   # Simülasyonda home ↔ 90° hareketinin süresi
+    # True : 90° konumu E18-D80NK sensöründen okunur (motor komutları yine ekrana yazılır).
+    # False: sensör yokken tam simülasyon, 90°'ye `rotation_seconds` sonra varılır.
+    use_position_sensor: bool = False
+    position_sensor_pin: int = 24    # E18-D80NK sinyal ucu (fiziksel pin 18)
+    rotation_seconds: float = 6.0    # Simülasyonda home ↔ 90° hareketinin süresi
+    home_seconds: float = 8.0        # Home komutundan sonra bu süre dolunca home'a varılmış sayılır
     auto_home_seconds: float = 10.0  # Platform dönmüşken bu kadar süre araç görünmezse home'a dön
+    # Bir hareket bu süre içinde hedefe varmazsa (sensör arızası, sıkışma) acil durdurulur
+    motion_timeout_seconds: float = 20.0
+
+
+@dataclass(frozen=True)
+class IrRemoteConfig:
+    enabled: bool = True
+    device_name: str = "gpio_ir_recv"  # gpio-ir sürücüsünün oluşturduğu aygıt
+    # NEC tarama kodları (bu tip 17 tuşlu kumandalar için yaygın değerler).
+    # Farklıysa terminalde "Tanımsız IR kodu geldi: 0x.." satırından okuyup buraya yazın.
+    rotate_code: int = 0x1C     # OK
+    emergency_code: int = 0x16  # *
+    reset_code: int = 0x0D      # #
+    repeat_suppress_seconds: float = 0.4  # Basılı tutunca gelen tekrarları yok say
 
 
 @dataclass(frozen=True)
 class KeyboardConfig:
     rotate_key: str = "d"
+    emergency_key: str = "x"   # Acil durdur (kumandada *)
+    reset_key: str = "r"       # Acil durdurmayı sıfırla (kumandada #)
     quit_key: str = "q"
     save_zone_key: str = "k"   # kaydet
     # Bölge ayar tuşları. Her işlem için birden fazla tuş verilebilir; harfler,
@@ -70,4 +92,5 @@ class AppConfig:
     gpio: GpioConfig = field(default_factory=GpioConfig)
     motor: MotorConfig = field(default_factory=MotorConfig)
     keyboard: KeyboardConfig = field(default_factory=KeyboardConfig)
+    ir_remote: IrRemoteConfig = field(default_factory=IrRemoteConfig)
     log_file: str = "logs/platform.log"

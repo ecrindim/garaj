@@ -11,10 +11,15 @@ tersine) 90° döner; araç her iki durumda da geri geri hareket eder.
 - Platform home'da değilken kamerada belirli süre araç görünmezse home'a dön
   (araç garaja girdikten de garajdan çıktıktan da sonra).
 - Hareket sırasında canlı görülürse motor durur.
+- Acil durdur (kumandada *): motor durur ve sistem KİLİTLENİR. Sıfırlama
+  (kumandada #) yapılana kadar döndürme ve otomatik home çalışmaz.
+- Bir hareket `motion_timeout_seconds` içinde hedefe varmazsa (sensör
+  arızası, sıkışma) sistem aynı şekilde acil durdurulur.
 """
 from __future__ import annotations
 
 import logging
+import time
 from typing import Callable, Optional, Sequence
 
 from application.fps_meter import FpsMeter
@@ -47,6 +52,10 @@ class PlatformController:
         display: StatusDisplay,
         fps_meter: FpsMeter,
         absence_timer: VehicleAbsenceTimer,
+        emergency_button: CommandButton,
+        reset_button: CommandButton,
+        motion_timeout_seconds: float,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._detector = detector
         self._safety = safety_checker
@@ -56,6 +65,11 @@ class PlatformController:
         self._display = display
         self._fps_meter = fps_meter
         self._absence_timer = absence_timer
+        self._emergency_button = emergency_button
+        self._reset_button = reset_button
+        self._motion_timeout_seconds = motion_timeout_seconds
+        self._clock = clock
+        self._motion_started_at = 0.0
         self._state = PlatformState.IDLE
         self._command = MotorCommand.NONE
 
@@ -69,9 +83,16 @@ class PlatformController:
         detections = self._detector.read_detections()
         fps = self._fps_meter.tick()
         report = self._safety.evaluate(detections)
+        # Tüm düğmeler her karede okunur ki eski basışlar birikip sonradan tetiklenmesin
         button_pressed = self._button.was_pressed()
+        emergency_pressed = self._emergency_button.was_pressed()
+        reset_pressed = self._reset_button.was_pressed()
 
-        if self._state is PlatformState.IDLE:
+        if emergency_pressed:
+            self._enter_emergency("Acil durdur butonuna basıldı")
+        elif self._state is PlatformState.EMERGENCY_STOPPED:
+            self._handle_emergency(button_pressed, reset_pressed)
+        elif self._state is PlatformState.IDLE:
             self._handle_idle(button_pressed, report, detections)
         else:
             self._handle_moving(button_pressed, report)
@@ -121,6 +142,24 @@ class PlatformController:
         self._motor.return_home()
         logger.info("HOME KOMUTU = 1")
 
+    # --- acil durdurma ----------------------------------------------------
+
+    def _enter_emergency(self, reason: str) -> None:
+        logger.error("ACİL DURDURMA: %s. Sıfırlamak için # tuşuna basın.", reason)
+        self._motor.stop()
+        self._state = PlatformState.EMERGENCY_STOPPED
+        self._command = MotorCommand.NONE
+        self._absence_timer.reset()
+        self._indicator.show_emergency()
+
+    def _handle_emergency(self, button_pressed: bool, reset_pressed: bool) -> None:
+        if reset_pressed:
+            logger.info("Acil durdurma sıfırlandı, sistem normal çalışmaya döndü.")
+            self._state = PlatformState.IDLE
+            self._indicator.show_idle()
+        elif button_pressed:
+            logger.warning("Acil durdurma aktif, döndürme yapılamaz. Önce # ile sıfırlayın.")
+
     # --- hareket halindeyken ---------------------------------------------
 
     def _handle_moving(self, button_pressed: bool, report: SafetyReport) -> None:
@@ -131,6 +170,14 @@ class PlatformController:
             self._stop_motion()
         elif self._motor.has_reached_target():
             self._on_target_reached()
+        elif self._motion_timed_out():
+            self._enter_emergency(
+                f"Hedefe {self._motion_timeout_seconds:.0f} sn içinde varılamadı "
+                "(sensör arızası ya da sıkışma olabilir)"
+            )
+
+    def _motion_timed_out(self) -> bool:
+        return self._clock() - self._motion_started_at >= self._motion_timeout_seconds
 
     def _on_target_reached(self) -> None:
         if self._state is PlatformState.ROTATING:
@@ -144,6 +191,7 @@ class PlatformController:
     def _begin_motion(self, state: PlatformState, command: MotorCommand) -> None:
         self._state = state
         self._command = command
+        self._motion_started_at = self._clock()
         self._absence_timer.reset()
         self._indicator.show_rotating()
 

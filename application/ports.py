@@ -18,6 +18,7 @@ class PlatformState(Enum):
     IDLE = "DURUYOR"
     ROTATING = "DÖNÜYOR"
     RETURNING_HOME = "HOME'A DÖNÜYOR"
+    EMERGENCY_STOPPED = "ACİL DURDURULDU"  # Kilitli; sıfırlanana kadar hareket yok
 
 
 class PlatformPosition(Enum):
@@ -61,6 +62,20 @@ class RotationMotor(Protocol):
     def has_reached_target(self) -> bool: ...
 
 
+class MotorDriver(Protocol):
+    """Motora fiziksel komut verir (şimdilik ekrana yazar, ileride röle)."""
+
+    def start_rotate_out(self) -> None: ...  # Saat yönünün tersine
+    def start_return_home(self) -> None: ...  # Saat yönünde
+    def stop(self) -> None: ...
+
+
+class RotatedPositionSensor(Protocol):
+    """Platform 90° konumundayken (metal sensörün önündeyken) True döner."""
+
+    def is_triggered(self) -> bool: ...
+
+
 class CommandButton(Protocol):
     def was_pressed(self) -> bool: ...
 
@@ -68,6 +83,7 @@ class CommandButton(Protocol):
 class StatusIndicator(Protocol):
     def show_idle(self) -> None: ...
     def show_rotating(self) -> None: ...
+    def show_emergency(self) -> None: ...
 
 
 class StatusDisplay(Protocol):
