@@ -14,6 +14,18 @@ Tek basış dönüşü başlatır (basılı tutmak gerekmez); motor `rotation_se
 | Duruyor | Açık        | Kapalı    | Sessiz  |
 | Dönüyor | Kapalı      | Açık      | Kesikli |
 
+## Giriş / çıkış akışı
+Araç hem girerken hem çıkarken platforma düz girer, platform **saat yönünün tersine 90°** döner ve araç geri geri hareket eder:
+- **Giriş:** Araç güneydeki kapıdan platforma girer → OK → platform döner → araç geri geri doğudaki garaj odasına girer.
+- **Çıkış:** Araç garaj odasından platforma çıkar → OK → platform döner → araç geri geri kapıdan çıkar.
+
+Her iki durumda araç platformdan ayrıldıktan sonra kamerada 10 sn araç görünmezse platform **saat yönünde** home'a döner; yeni araç gelebilir ya da garajdaki araç çıkabilir.
+
+## Konum algılama (gerçek sistem)
+- **90° konumu:** Lazer mesafe sensörü platform ucundaki metali görür (platform hep aynı 90° konumuna gittiği için tek metal yeterli).
+- **Home:** Motoru panodaki mekanik switch keser; Pi switch'i okumaz, belirli süre dolunca home'a varılmış kabul eder.
+- **Ara konum** bilinmez ve gerekmez: yön her zaman belli (dışarı = saat yönünün tersi, home = saat yönü); motor hedefe varana kadar döner.
+
 ## Klasör yapısı
 ```
 domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
@@ -54,4 +66,6 @@ Kırmızı LED → GPIO17, beyaz LED → GPIO27, buzzer → GPIO22 (LED'lere ser
 - `MotorConfig.rotation_seconds`: Simüle dönüş süresi.
 
 ## Gerçek donanıma geçiş
-`application/ports.py` içindeki `RotationMotor` ve `CommandButton` arayüzlerini uygulayan yeni sınıflar yazıp `main.py` içinde `SimulatedMotor` ve `SimulatedButton` yerine verin; diğer kodlar değişmez.
+`application/ports.py` içindeki `RotationMotor` (lazer okuma + süreli home) ve `CommandButton` arayüzlerini uygulayan yeni sınıflar yazıp `main.py` içinde `SimulatedMotor` ve `SimulatedButton` yerine verin; diğer kodlar değişmez.
+
+`zone.json` kuruluma özel çalışma dosyasıdır; repoya eklemeyin (`.gitignore`).

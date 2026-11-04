@@ -3,11 +3,14 @@
 Durumlar : DURUYOR, DÖNÜYOR, HOME'A DÖNÜYOR
 Konumlar : HOME, DÖNMÜŞ, ARADA
 
-- Düğme, platform home'da (ya da arada) iken: araç güvenli bölgedeyse döndür.
-- Düğme, platform dönmüşken: platformu home'a döndür (araçla birlikte).
-- Platform home'da değilken kamerada belirli süre araç görünmezse: home'a dön.
-- Hareket sırasında canlı görülürse motor durur. Araç konumu hareket
-  sırasında kontrol edilmez (dönen aracın kutusu daireden taşabilir).
+Araç hem garaja girerken hem çıkarken platform aynı yönde (saat yönünün
+tersine) 90° döner; araç her iki durumda da geri geri hareket eder.
+
+- Düğme, platform home'da ya da aradayken: araç güvenli bölgedeyse 90° döndür.
+- Düğme, platform dönmüşken: platformu araçla birlikte home'a döndür.
+- Platform home'da değilken kamerada belirli süre araç görünmezse home'a dön
+  (araç garaja girdikten de garajdan çıktıktan da sonra).
+- Hareket sırasında canlı görülürse motor durur.
 """
 from __future__ import annotations
 
@@ -103,16 +106,20 @@ class PlatformController:
         self._try_return_home(report)
 
     def _try_rotate(self, report: SafetyReport) -> None:
-        if report.is_safe:
-            self._start_motion(PlatformState.ROTATING, PlatformPosition.ROTATED, MotorCommand.ROTATE)
-        else:
+        if not report.is_safe:
             logger.warning("Döndürme reddedildi: %s", report.status.value)
+            return
+        self._begin_motion(PlatformState.ROTATING, MotorCommand.ROTATE)
+        self._motor.rotate_out()
+        logger.info("DÖNDÜR KOMUTU = 1")
 
     def _try_return_home(self, report: SafetyReport) -> None:
         if report.living_nearby:
             logger.warning("Home dönüşü reddedildi: %s", report.status.value)
             return
-        self._start_motion(PlatformState.RETURNING_HOME, PlatformPosition.HOME, MotorCommand.HOME)
+        self._begin_motion(PlatformState.RETURNING_HOME, MotorCommand.HOME)
+        self._motor.return_home()
+        logger.info("HOME KOMUTU = 1")
 
     # --- hareket halindeyken ---------------------------------------------
 
@@ -123,18 +130,22 @@ class PlatformController:
             logger.warning("Hareket sırasında canlı algılandı, platform durduruluyor!")
             self._stop_motion()
         elif self._motor.has_reached_target():
-            logger.info("Hedefe ulaşıldı: %s", self._motor.position.value)
-            self._stop_motion()
+            self._on_target_reached()
+
+    def _on_target_reached(self) -> None:
+        if self._state is PlatformState.ROTATING:
+            logger.info("Dönüş tamamlandı, platform 90° konumunda.")
+        else:
+            logger.info("Platform home konumunda.")
+        self._stop_motion()
 
     # --- motor komutları -------------------------------------------------
 
-    def _start_motion(self, state: PlatformState, target: PlatformPosition, command: MotorCommand) -> None:
+    def _begin_motion(self, state: PlatformState, command: MotorCommand) -> None:
         self._state = state
         self._command = command
         self._absence_timer.reset()
-        self._motor.rotate_to(target)
         self._indicator.show_rotating()
-        logger.info("%s KOMUTU = 1", command.value)
 
     def _stop_motion(self) -> None:
         logger.info("%s KOMUTU = 0", self._command.value)

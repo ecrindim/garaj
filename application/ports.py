@@ -26,6 +26,7 @@ class PlatformPosition(Enum):
     BETWEEN = "ARADA"  # Hareket yarıda kesildi
 
 
+
 class MotorCommand(Enum):
     NONE = "YOK"
     ROTATE = "DÖNDÜR"
@@ -49,9 +50,13 @@ class ObjectDetector(Protocol):
 
 
 class RotationMotor(Protocol):
+    """Platform hep aynı yönde (saat yönünün tersine) 90° döner,
+    home'a ters yönde (saat yönünde) geri gelir."""
+
     @property
     def position(self) -> PlatformPosition: ...
-    def rotate_to(self, target: PlatformPosition) -> None: ...
+    def rotate_out(self) -> None: ...
+    def return_home(self) -> None: ...
     def stop(self) -> None: ...
     def has_reached_target(self) -> bool: ...
 

@@ -1,8 +1,13 @@
-"""Gerçek motor gelene kadar platformun dönüşünü simüle eder.
+"""Gerçek motor gelene kadar platformun hareketini simüle eder.
 
-Platformun konumu 0 (home) ile 1 (döndürülmüş) arasında tutulur ve motor
-hareket ettikçe süreye göre ilerler. Hareket yarıda kesilirse konum
-korunur; sonraki komut kalan yolu tamamlar.
+Gerçek sistemde:
+  - 90° dönüş (saat yönünün tersine): lazer sensör platform ucundaki
+    metali görünce hedefe varılmış sayılır.
+  - Home dönüşü (saat yönünde): motoru panodaki mekanik switch keser;
+    Pi switch'i okumaz, belirli süre dolunca home'a varılmış kabul eder.
+
+Simülasyonda platformun home'dan uzaklığı 0..1 arasında tutulur ve süreye
+göre ilerler. Hareket yarıda kesilirse konum korunur.
 """
 from __future__ import annotations
 
@@ -16,10 +21,6 @@ logger = logging.getLogger(__name__)
 
 HOME_PROGRESS = 0.0
 ROTATED_PROGRESS = 1.0
-TARGET_PROGRESS = {
-    PlatformPosition.HOME: HOME_PROGRESS,
-    PlatformPosition.ROTATED: ROTATED_PROGRESS,
-}
 
 
 class SimulatedMotor:
@@ -39,13 +40,13 @@ class SimulatedMotor:
             return PlatformPosition.ROTATED
         return PlatformPosition.BETWEEN
 
-    def rotate_to(self, target: PlatformPosition) -> None:
-        if target not in TARGET_PROGRESS:
-            raise ValueError(f"Motor bu konuma gönderilemez: {target}")
-        self._advance()
-        self._target = TARGET_PROGRESS[target]
-        self._last_update = self._clock()
-        logger.info(">>> MOTOR DÖNÜYOR → %s (simülasyon, konum %%%d)", target.value, self._percent())
+    def rotate_out(self) -> None:
+        self._start(ROTATED_PROGRESS)
+        logger.info(">>> MOTOR DÖNÜYOR → 90° saat yönünün tersine (simülasyon, konum %%%d)", self._percent())
+
+    def return_home(self) -> None:
+        self._start(HOME_PROGRESS)
+        logger.info(">>> MOTOR HOME'A DÖNÜYOR → saat yönünde (simülasyon, konum %%%d)", self._percent())
 
     def stop(self) -> None:
         self._advance()
@@ -55,6 +56,11 @@ class SimulatedMotor:
     def has_reached_target(self) -> bool:
         self._advance()
         return self._target is not None and self._progress == self._target
+
+    def _start(self, target: float) -> None:
+        self._advance()
+        self._target = target
+        self._last_update = self._clock()
 
     def _advance(self) -> None:
         now = self._clock()

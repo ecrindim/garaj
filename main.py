@@ -67,7 +67,10 @@ def build_zone_store(config: AppConfig) -> ZoneStore:
 
 
 def build_key_bindings(
-    config: AppConfig, button: SimulatedButton, zone_store: ZoneStore, quit_event: threading.Event
+    config: AppConfig,
+    button: SimulatedButton,
+    zone_store: ZoneStore,
+    quit_event: threading.Event,
 ) -> KeyBindings:
     keys = config.keyboard
     move = config.safety.zone_move_step
