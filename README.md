@@ -7,7 +7,7 @@ Düğmeye (`d` tuşu) basıldığında platform yalnızca şu durumda döner (D�
 - Araç kutusu **yuvarlak** güvenli bölgenin **tamamen içindeyse** (sınırla çakışan ya da dışarıdaki araç → döndürme yok)
 - Çevrede canlı (insan, kedi, köpek) yoksa (merkezi araç kutusunun içinde kalanlar araç içi sayılıp yok sayılır)
 
-Tek basış dönüşü başlatır (basılı tutmak gerekmez); motor `rotation_seconds` süresi dolunca durur. Dönüş sırasında canlı algılanırsa platform hemen durur. Dönüş başladıktan sonra araç konumu kontrol edilmez (dönen aracın kutusu daireden taşabileceği için). FPS hem konsolda hem önizlemede gösterilir. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
+Tek basış dönüşü başlatır (basılı tutmak gerekmez); motor `rotation_seconds` süresi dolunca durur. Platform dönmüşken düğmeye basılırsa platform home'a döner. Platform home'da değilken kamerada `auto_home_seconds` (10 sn) boyunca hiç araç görünmezse otomatik olarak home'a döner; o an çevrede canlı varsa canlı uzaklaşınca döner. Dönüş sırasında canlı algılanırsa platform hemen durur. Dönüş başladıktan sonra araç konumu kontrol edilmez (dönen aracın kutusu daireden taşabileceği için). FPS hem konsolda hem önizlemede gösterilir. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
 
 | Durum   | Kırmızı LED | Beyaz LED | Buzzer  |
 |---------|-------------|-----------|---------|

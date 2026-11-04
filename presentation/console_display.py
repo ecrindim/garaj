@@ -5,6 +5,7 @@ Durum değiştiğinde hemen, değişmese bile `refresh_seconds` aralıklarla
 """
 from __future__ import annotations
 
+import math
 import time
 from typing import Callable, Optional
 
@@ -32,8 +33,11 @@ class ConsoleDisplay:
         button = "BASILDI" if snapshot.button_pressed else "basılmadı"
         vehicle = "platformda" if snapshot.safety.vehicle_secure else "yok/sınır dışı"
         living = "VAR" if snapshot.safety.living_nearby else "yok"
-        return (
-            f"Düğme: {button:<9} | Motor: {snapshot.state.value:<7} | "
-            f"Komut: {snapshot.rotate_command} | Araç: {vehicle:<14} | "
-            f"Canlı: {living:<3} | {snapshot.safety.status.value}"
+        text = (
+            f"Düğme: {button:<9} | Motor: {snapshot.state.value:<14} | "
+            f"Konum: {snapshot.position.value:<6} | Komut: {snapshot.command.value:<6} | "
+            f"Araç: {vehicle:<14} | Canlı: {living:<3} | {snapshot.safety.status.value}"
         )
+        if snapshot.seconds_until_home is not None:
+            text += f" | Home'a: {math.ceil(snapshot.seconds_until_home)} sn"
+        return text

@@ -8,6 +8,7 @@ Tuşlar  :  d = döndür, q = çıkış, k = bölgeyi kaydet
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 from typing import Callable
 from contextlib import ExitStack
@@ -15,6 +16,7 @@ from pathlib import Path
 
 from application.fps_meter import FpsMeter
 from application.platform_controller import PlatformController
+from application.vehicle_absence_timer import VehicleAbsenceTimer
 from application.zone_store import ZoneStore
 from config import AppConfig
 from domain.detection import LabelClassifier
@@ -31,6 +33,13 @@ from presentation.composite_display import CompositeDisplay
 from presentation.console_display import ConsoleDisplay
 
 logger = logging.getLogger("platform")
+
+
+def configure_console_encoding() -> None:
+    """Terminalin dil ayarı UTF-8 olmasa da Türkçe karakterler doğru görünsün."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def configure_logging(log_file: str) -> None:
@@ -117,6 +126,7 @@ def _join(keys: tuple[str, ...]) -> str:
 
 
 def main() -> None:
+    configure_console_encoding()
     config = AppConfig()
     configure_logging(config.log_file)
 
@@ -147,6 +157,7 @@ def main() -> None:
             indicator=indicator,
             display=display,
             fps_meter=FpsMeter(),
+            absence_timer=VehicleAbsenceTimer(config.motor.auto_home_seconds),
         )
 
         print_help(config)

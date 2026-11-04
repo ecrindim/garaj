@@ -1,6 +1,7 @@
 """Kamera önizlemesine yuvarlak güvenli bölgeyi, tespitleri ve FPS'i çizer."""
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import cv2
@@ -63,5 +64,13 @@ class PreviewOverlay:
 
     @staticmethod
     def _draw_status(frame, snapshot: StatusSnapshot) -> None:
-        cv2.putText(frame, f"FPS: {snapshot.fps:.1f}", (10, 30), FONT, 0.8, WHITE, 2)
-        cv2.putText(frame, f"Motor: {snapshot.state.name}", (10, 60), FONT, 0.8, WHITE, 2)
+        # OpenCV Türkçe karakter çizemediği için enum adları (ASCII) kullanılır
+        lines = [
+            f"FPS: {snapshot.fps:.1f}",
+            f"Motor: {snapshot.state.name}",
+            f"Konum: {snapshot.position.name}",
+        ]
+        if snapshot.seconds_until_home is not None:
+            lines.append(f"HOME: {math.ceil(snapshot.seconds_until_home)} sn")
+        for index, line in enumerate(lines):
+            cv2.putText(frame, line, (10, 30 + index * 30), FONT, 0.8, WHITE, 2)

@@ -44,7 +44,8 @@ class GpioConfig:
 
 @dataclass(frozen=True)
 class MotorConfig:
-    rotation_seconds: float = 6.0  # Simülasyonda 90° dönüşün süreceği süre
+    rotation_seconds: float = 6.0   # Simülasyonda home ↔ dönmüş hareketinin süresi
+    auto_home_seconds: float = 10.0  # Platform dönmüşken bu kadar süre araç görünmezse home'a dön
 
 
 @dataclass(frozen=True)

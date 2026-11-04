@@ -17,16 +17,31 @@ from domain.zones import CircularZone
 class PlatformState(Enum):
     IDLE = "DURUYOR"
     ROTATING = "DÖNÜYOR"
+    RETURNING_HOME = "HOME'A DÖNÜYOR"
+
+
+class PlatformPosition(Enum):
+    HOME = "HOME"
+    ROTATED = "DÖNMÜŞ"
+    BETWEEN = "ARADA"  # Hareket yarıda kesildi
+
+
+class MotorCommand(Enum):
+    NONE = "YOK"
+    ROTATE = "DÖNDÜR"
+    HOME = "HOME"
 
 
 @dataclass(frozen=True)
 class StatusSnapshot:
     state: PlatformState
+    position: PlatformPosition
+    command: MotorCommand
     button_pressed: bool
-    rotate_command: int
     safety: SafetyReport
     detections: Sequence[Detection]
     fps: float
+    seconds_until_home: Optional[float]  # Otomatik home sayacı çalışmıyorsa None
 
 
 class ObjectDetector(Protocol):
@@ -34,9 +49,11 @@ class ObjectDetector(Protocol):
 
 
 class RotationMotor(Protocol):
-    def start_rotation(self) -> None: ...
+    @property
+    def position(self) -> PlatformPosition: ...
+    def rotate_to(self, target: PlatformPosition) -> None: ...
     def stop(self) -> None: ...
-    def is_rotation_complete(self) -> bool: ...
+    def has_reached_target(self) -> bool: ...
 
 
 class CommandButton(Protocol):
