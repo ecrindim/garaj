@@ -121,7 +121,7 @@ def start_ir_remote(config: AppConfig, buttons: ControlButtons, resources: ExitS
         ir.reset_code: buttons.reset.press,
     }
     try:
-        listener = IrRemoteListener(ir.device_name, bindings, ir.repeat_suppress_seconds)
+        listener = IrRemoteListener(ir.driver_name, bindings, ir.repeat_suppress_seconds)
     except Exception as error:  # Kumanda yoksa sistem klavyeyle çalışmaya devam etsin
         logger.warning("IR kumanda kullanılamıyor (%s); sadece klavye çalışacak.", error)
         return

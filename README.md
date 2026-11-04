@@ -51,13 +51,14 @@ Sensör bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotatio
 ## Kurulum (bir kez)
 ```bash
 sudo apt update
-sudo apt install -y imx500-all python3-picamera2 python3-opencv python3-gpiozero python3-lgpio ir-keytable python3-evdev
+sudo apt install -y imx500-all python3-picamera2 python3-opencv python3-gpiozero python3-lgpio v4l-utils
 echo "dtoverlay=gpio-ir,gpio_pin=23" | sudo tee -a /boot/firmware/config.txt
+sudo reboot
 ```
-Kumandanın NEC protokolünü her açılışta etkinleştirmek için `sudo crontab -e` ile şu satırı ekleyin, sonra `sudo reboot`:
-```
-@reboot /usr/bin/ir-keytable -p nec
-```
+- **Overlay satırı:** `config.txt` içinde tam olarak `dtoverlay=gpio-ir,gpio_pin=23` olmalı (virgülden sonra **boşluk yok**) ve `[all]` başlığının altında durmalı. Boşluk olursa pin ayarı okunmaz, sürücü varsayılan GPIO18'i dinler.
+- **IR kod çözme:** Program kumanda sinyalini ham olarak (`/dev/lircN`) okuyup kendi NEC çözücüsüyle çözer. KY-022 başlangıç darbesini uzattığı (~10.400 µs) ve çekirdeğin NEC çözücüsü bunu reddettiği için böyle yapılır; `ir-keytable -p nec` ya da crontab ayarı **gerekmez**.
+- **IR sorun giderme:** `sudo ir-ctl -d /dev/lirc0 -r` komutu çalışırken kumandaya basınca `+9000 -4500 …` gibi sayılar akmalı. Akmıyorsa kablolama ya da overlay satırı hatalıdır. `/dev/lirc0` açılırken `Permission denied` alınırsa: `sudo usermod -aG video $USER` ve yeniden giriş.
+
 Sanal ortam kullanılacaksa picamera2 sistem paketinden geldiği için: `python3 -m venv --system-site-packages .venv`.
 
 ## Çalıştırma
@@ -102,7 +103,7 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
 application/   Arayüzler (ports), kontrolcü, platform motoru (sensör + süreli home),
                ayarlanabilir bölge, araç yokluk sayacı, FPS ölçer
-hardware/      AI Camera, IR kumanda, klavye, E18-D80NK sensörü, LED/buzzer,
+hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, E18-D80NK sensörü, LED/buzzer,
                motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge kaydı
 presentation/  Konsol çıktısı ve önizleme çizimi
 docs/          Devre şeması

@@ -59,7 +59,7 @@ class MotorConfig:
 @dataclass(frozen=True)
 class IrRemoteConfig:
     enabled: bool = True
-    device_name: str = "gpio_ir_recv"  # gpio-ir sürücüsünün oluşturduğu aygıt
+    driver_name: str = "gpio_ir_recv"  # gpio-ir sürücüsü; LIRC aygıtı buna göre bulunur
     # NEC tarama kodları (bu tip 17 tuşlu kumandalar için yaygın değerler).
     # Farklıysa terminalde "Tanımsız IR kodu geldi: 0x.." satırından okuyup buraya yazın.
     rotate_code: int = 0x1C     # OK
