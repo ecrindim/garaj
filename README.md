@@ -1,107 +1,116 @@
 # Araç Döndürme Platformu — Basit Sürüm
 
-Raspberry Pi 5 + Raspberry Pi AI Camera (IMX500). Nesne tespiti kameranın kendi çipinde çalışan COCO modeliyle yapılır.
+Raspberry Pi 5 + Raspberry Pi AI Camera (IMX500) ile garaj girişindeki araç döndürme platformunun kontrolü. Nesne tespiti kameranın kendi çipinde çalışan COCO modeliyle yapılır; sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır.
 
-## Kurallar
-Düğmeye (`d` tuşu) basıldığında platform yalnızca şu durumda döner (DÖNDÜR KOMUTU = 1):
-- Araç kutusu **yuvarlak** güvenli bölgenin **tamamen içindeyse** (sınırla çakışan ya da dışarıdaki araç → döndürme yok)
-- Çevrede canlı (insan, kedi, köpek) yoksa (merkezi araç kutusunun içinde kalanlar araç içi sayılıp yok sayılır)
+## Kullanım döngüsü
+Tek kapı güneyde, garaj odası doğuda. Platform her seferinde **saat yönünün tersine 90°** döner ve iş bitince **saat yönünde** home'a geri gelir.
 
-Tek basış dönüşü başlatır (basılı tutmak gerekmez); motor `rotation_seconds` süresi dolunca durur. Platform dönmüşken düğmeye basılırsa platform home'a döner. Platform home'da değilken kamerada `auto_home_seconds` (10 sn) boyunca hiç araç görünmezse otomatik olarak home'a döner; o an çevrede canlı varsa canlı uzaklaşınca döner. Dönüş sırasında canlı algılanırsa platform hemen durur. Dönüş başladıktan sonra araç konumu kontrol edilmez (dönen aracın kutusu daireden taşabileceği için). FPS hem konsolda hem önizlemede gösterilir. Sadece `car`, `person`, `cat`, `dog` etiketleri dikkate alınır; diğer nesneler hiç işlenmez (`config.py` → `SafetyConfig`).
+- **Giriş:** Araç kapıdan platforma önüyle girer → OK → platform döner → araç geri geri garaj odasına girer.
+- **Çıkış:** Araç garaj odasından platforma önüyle çıkar → OK → platform döner → araç önüyle kapıdan çıkar.
+- **Home:** Platform home'da değilken kamerada `auto_home_seconds` (10 sn) boyunca hiç araç görünmezse platform home'a döner. O an çevrede canlı varsa, canlı uzaklaşınca döner.
 
-| Durum   | Kırmızı LED | Beyaz LED | Buzzer  |
-|---------|-------------|-----------|---------|
-| Duruyor | Açık        | Kapalı    | Sessiz  |
-| Dönüyor | Kapalı      | Açık      | Kesikli |
+## Güvenlik kuralları
+- **Döndürme şartı:** Araç kutusu **yuvarlak** güvenli bölgenin **tamamen içinde** olmalı ve çevrede canlı (insan, kedi, köpek) olmamalı. Araç kutusunun içinde kalan canlılar araç içi sayılıp yok sayılır.
+- **Hareket sırasında:** Canlı görülürse motor hemen durur. Araç konumu kontrol edilmez, çünkü dönen aracın kutusu daireden taşabilir.
+- **Acil durdur (kumandada `*`):** Motor durur ve sistem **kilitlenir**. `#` ile sıfırlanana kadar döndürme ve otomatik home çalışmaz.
+- **Zaman aşımı:** Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa (sensör arızası, sıkışma) sistem aynı şekilde kilitlenir.
+- **Fiziksel acil stop:** Kumandadaki `*` yazılımsal bir durdurmadır. Motor gücünü Pi'den bağımsız kesen fiziksel acil stop butonu panoda mutlaka olmalıdır.
 
-## Giriş / çıkış akışı
-Araç hem girerken hem çıkarken platforma düz girer, platform **saat yönünün tersine 90°** döner ve araç geri geri hareket eder:
-- **Giriş:** Araç güneydeki kapıdan platforma girer → OK → platform döner → araç geri geri doğudaki garaj odasına girer.
-- **Çıkış:** Araç garaj odasından platforma çıkar → OK → platform döner → araç geri geri kapıdan çıkar.
+| Durum | Kırmızı LED | Beyaz LED | Buzzer |
+|---|---|---|---|
+| Duruyor | Açık | Kapalı | Sessiz |
+| Dönüyor / home'a dönüyor | Kapalı | Açık | Kesikli |
+| Acil durduruldu | Hızlı yanıp söner | Kapalı | Sürekli |
 
-Her iki durumda araç platformdan ayrıldıktan sonra kamerada 10 sn araç görünmezse platform **saat yönünde** home'a döner; yeni araç gelebilir ya da garajdaki araç çıkabilir.
+## Konum algılama
+- **90° konumu:** E18-D80NK kızılötesi yakınlık sensörü platform ucundaki metali görür. Algılama mesafesi sensörün arkasındaki vidayla ayarlanır.
+- **Home:** Motoru panodaki mekanik switch keser. Pi switch'i okumaz; home komutundan `home_seconds` sonra home'a varılmış kabul eder.
+- **Ara konum:** Bilinmez ve gerekmez. Yön her zaman belli (dışarı = saat yönünün tersi, home = saat yönü); motor hedefe varana kadar döner.
 
-## Konum algılama (gerçek sistem)
-- **90° konumu:** E18-D80NK kızılötesi yakınlık sensörü platform ucundaki metali görür (platform hep aynı 90° konumuna gittiği için tek metal yeterli). Algılama mesafesi sensörün arkasındaki vidayla ayarlanır. Kodda açmak için `config.py` → `MotorConfig.use_position_sensor = True`.
-- **Home:** Motoru panodaki mekanik switch keser; Pi switch'i okumaz, belirli süre dolunca home'a varılmış kabul eder.
-- **Ara konum** bilinmez ve gerekmez: yön her zaman belli (dışarı = saat yönünün tersi, home = saat yönü); motor hedefe varana kadar döner.
+Sensör bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotation_seconds` sonra varılır). Sensörü açmak için: `config.py` → `MotorConfig.use_position_sensor = True`.
 
-## Klasör yapısı
-```
-domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
-application/   Arayüzler (ports), kontrolcü, ayarlanabilir bölge, FPS ölçer
-hardware/      AI Camera, klavye dinleyici, simüle düğme/motor, LED/buzzer, bölge kaydı
-presentation/  Konsol çıktısı ve önizleme çizimi
-config.py      Tüm ayarlar (güvenli bölge, pinler, eşikler)
-main.py        Bileşenleri bağlayan giriş noktası
-```
+## Devre şeması
+![Devre şeması](docs/devre_semasi.svg)
 
-## Kurulum
+| Bileşen | Bağlantı (fiziksel pin) |
+|---|---|
+| Kırmızı LED | GPIO17 (11) → 330 Ω → LED → GND |
+| Beyaz LED | GPIO27 (13) → 330 Ω → LED → GND |
+| Aktif buzzer | GPIO22 (15) → buzzer + ; buzzer − → GND |
+| KY-022 IR alıcı | `S` → GPIO23 (16), `+` → 3.3V (17), `−` → GND |
+| E18-D80NK | kahverengi → 5V (2), mavi → GND (6), siyah → **10 kΩ** → GPIO24 (18); GPIO24 → **20 kΩ** → GND |
+| AI Camera | Şerit kablo → CAM/DISP 0 |
+| Röle modülü *(planlanan, kodda yok)* | IN1 → GPIO5 (29) döndür, IN2 → GPIO6 (31) home |
+
+- **Gerilim bölücü zorunlu:** E18-D80NK çıkışı 5V, Pi pinleri ise 3.3V. Bölücünün orta noktası önü boşken ≈3.3V, cisim varken ≈0V olmalı.
+- **IR alıcı:** KY-022'yi 3.3V'a bağlayın, 5V'a değil.
+- **Buzzer:** 5V buzzer doğrudan GPIO'ya bağlanmaz; araya NPN transistör (ör. 2N2222) gerekir.
+- **Pano tarafı:** Pano (12–24V / 220V) asla doğrudan Pi'ye bağlanmaz; röle ya da optokuplör kullanılır.
+- **Ortak GND:** Tüm GND'ler ortak olmalı. Pi 5'i resmi 27 W USB-C adaptörle besleyin.
+
+## Kurulum (bir kez)
 ```bash
-sudo apt update && sudo apt install -y imx500-all python3-picamera2 python3-opencv python3-gpiozero python3-lgpio
-sudo reboot
+sudo apt update
+sudo apt install -y imx500-all python3-picamera2 python3-opencv python3-gpiozero python3-lgpio ir-keytable python3-evdev
+echo "dtoverlay=gpio-ir,gpio_pin=23" | sudo tee -a /boot/firmware/config.txt
 ```
-Sanal ortam kullanılacaksa picamera2 sistem paketinden geldiği için `python3 -m venv --system-site-packages .venv`.
+Kumandanın NEC protokolünü her açılışta etkinleştirmek için `sudo crontab -e` ile şu satırı ekleyin, sonra `sudo reboot`:
+```
+@reboot /usr/bin/ir-keytable -p nec
+```
+Sanal ortam kullanılacaksa picamera2 sistem paketinden geldiği için: `python3 -m venv --system-site-packages .venv`.
 
 ## Çalıştırma
 ```bash
 python3 main.py
 ```
-| Tuş | Görev |
-|-----|-------|
-| `d` | Döndür düğmesi (kumandada OK) |
-| `x` | Acil durdur (kumandada `*`) |
-| `r` | Acil durdurmayı sıfırla (kumandada `#`) |
-| `+` / `-` ya da `b` / `v` | Güvenli bölgeyi büyüt / küçült |
-| Ok tuşları ya da `i` `m` `j` `l` | Güvenli bölgeyi yukarı / aşağı / sola / sağa taşı |
-| `k` | Bölgeyi `zone.json` dosyasına kaydet (açılışta otomatik yüklenir) |
-| `q` | Çıkış |
 
-Bağlı olmayan bir tuşa basılırsa terminalde `Tanımsız tuş geldi: '…'` yazar; bir tuş çalışmıyorsa ne gönderdiğini buradan görüp `KeyboardConfig` içine ekleyebilirsiniz. Tuşlar terminale gider; önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın. Loglar `logs/platform.log` dosyasına da yazılır.
+| Kumanda | Klavye | Görev |
+|---|---|---|
+| OK | `d` | Döndür. Platform 90°'deyken basılırsa araçla birlikte home'a döner. |
+| `*` | `x` | Acil durdur (kilitler) |
+| `#` | `r` | Acil durdurmayı sıfırla |
+| | `+` / `-` ya da `b` / `v` | Güvenli bölgeyi büyüt / küçült |
+| | Ok tuşları ya da `i` `m` `j` `l` | Güvenli bölgeyi yukarı / aşağı / sola / sağa taşı |
+| | `k` | Bölgeyi `zone.json` dosyasına kaydet (açılışta otomatik yüklenir) |
+| | `q` | Çıkış |
 
-## Bağlantı (varsayılan, BCM)
-Kırmızı LED → GPIO17, beyaz LED → GPIO27, buzzer → GPIO22 (LED'lere seri direnç unutmayın). `config.py` → `GpioConfig` ile değiştirilebilir.
+- **Klavye:** Tuşlar terminale gider. Önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın.
+- **Tanımsız tuş ya da kod:** Terminalde `Tanımsız tuş geldi` ya da `Tanımsız IR kodu geldi: 0x..` yazar. Kodu `KeyboardConfig` ya da `IrRemoteConfig` içine ekleyebilirsiniz.
+- **Kumanda yoksa:** Kumanda bulunamazsa sistem klavyeyle çalışmaya devam eder.
+- **Loglar:** `logs/platform.log` dosyasına da yazılır.
 
-## IR kumanda (KY-022)
-| Kumanda | Görev |
-|---|---|
-| OK | Döndür (koşullar güvenliyse) |
-| `*` | Acil durdur: motor durur, sistem **kilitlenir** (kırmızı LED hızlı yanıp söner, buzzer sürekli öter) |
-| `#` | Acil durdurmayı sıfırla |
+Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA), komut, araç/canlı bilgisi ve home geri sayımını gösterir. Önizlemede güvenli daire (güvenliyse yeşil, değilse kırmızı) ve tespit kutuları çizilir.
 
-Kilitliyken döndürme ve otomatik home çalışmaz. Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa sistem yine kilitlenir (sensör arızası, sıkışma).
+## Ayarlar (`config.py`)
+| Ayar | Varsayılan | Açıklama |
+|---|---|---|
+| `CameraConfig.confidence_threshold` | 0.55 | Tespit güven eşiği. Yanlış algılama çoksa yükseltin. |
+| `CameraConfig.show_preview` | True | Monitör yoksa (SSH) False |
+| `SafetyConfig.zone_*` | merkez 0.5/0.5, yarıçap 0.40 | `zone.json` yoksa kullanılan varsayılan daire |
+| `SafetyConfig.vehicle_labels` / `living_labels` | car / person, cat, dog | Dikkate alınan nesneler |
+| `MotorConfig.use_position_sensor` | False | E18-D80NK bağlandıktan sonra True |
+| `MotorConfig.rotation_seconds` | 6 | Simülasyonda 90° dönüş süresi |
+| `MotorConfig.home_seconds` | 8 | Home'a varılmış sayılma süresi; gerçek dönüş süresinden biraz uzun olmalı |
+| `MotorConfig.auto_home_seconds` | 10 | Araç görünmezse home'a dönme süresi |
+| `MotorConfig.motion_timeout_seconds` | 20 | Hedefe varılamazsa acil durdurma süresi |
+| `IrRemoteConfig.*_code` | OK 0x1C, * 0x16, # 0x0D | Kumanda tuş kodları |
+| `GpioConfig.*_pin` | 17 / 27 / 22 | LED ve buzzer pinleri |
 
-`*` yazılımsal bir durdurmadır; Pi'den bağımsız, motor gücünü kesen fiziksel acil stop butonunun yerini tutmaz.
-
-**Bağlantı:** `-` → GND (pin 6), orta → 3.3V (pin 1), `S` → GPIO23 (pin 16). 5V'a bağlamayın.
-
-**Kurulum (bir kez):**
-```bash
-sudo apt install -y ir-keytable python3-evdev
-echo "dtoverlay=gpio-ir,gpio_pin=23" | sudo tee -a /boot/firmware/config.txt
-sudo reboot
+## Klasör yapısı
 ```
-Kumandanın NEC protokolünü her açılışta etkinleştirmek için `sudo crontab -e` ile şu satırı ekleyin:
+domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
+application/   Arayüzler (ports), kontrolcü, platform motoru (sensör + süreli home),
+               ayarlanabilir bölge, araç yokluk sayacı, FPS ölçer
+hardware/      AI Camera, IR kumanda, klavye, E18-D80NK sensörü, LED/buzzer,
+               motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge kaydı
+presentation/  Konsol çıktısı ve önizleme çizimi
+docs/          Devre şeması
+config.py      Tüm ayarlar
+main.py        Bileşenleri bağlayan giriş noktası
 ```
-@reboot /usr/bin/ir-keytable -p nec
-```
-Tuş kodları `config.py` → `IrRemoteConfig` içindedir. Bir tuş çalışmazsa terminalde `Tanımsız IR kodu geldi: 0x..` satırındaki kodu oraya yazın. Kumanda bulunamazsa sistem klavyeyle çalışmaya devam eder.
 
-## E18-D80NK bağlantısı
-| Sensör kablosu | Pi 5 |
-|---|---|
-| Kahverengi (+5V) | 5V (pin 2) |
-| Mavi (GND) | GND (pin 9) |
-| Siyah (sinyal) | GPIO24 (pin 18) |
+## Gerçek motora geçiş
+Motor komutları şu an `hardware/console_motor_driver.py` ile ekrana yazılıyor. Röleler bağlanınca `application/ports.py` içindeki `MotorDriver` arayüzünü (`start_rotate_out`, `start_return_home`, `stop`) uygulayan bir röle sürücüsü yazılır ve `main.py` içindeki `build_motor` fonksiyonunda `ConsoleMotorDriver` yerine verilir. Kontrolcü, güvenlik kuralları ve sensör mantığı değişmez.
 
-Sinyal ucu Pi'ye bağlanmadan önce multimetreyle ölçülmeli: önü boşken ~5V görülüyorsa araya gerilim bölücü (sinyal → 10 kΩ → GPIO24, GPIO24 → 20 kΩ → GND) konur; aksi halde Pi'nin 3.3V pini zarar görür.
-
-## Ayarlanacaklar
-- Güvenli bölge: Çalışırken klavyeyle ayarlayıp `k` ile kaydedin. `zone.json` yoksa `SafetyConfig` içindeki varsayılan merkez/yarıçap kullanılır. Adım büyüklükleri `zone_move_step` ve `zone_resize_step`.
-- `CameraConfig.show_preview`: Monitör yoksa (SSH) `False`.
-- `MotorConfig.rotation_seconds`: Simüle dönüş süresi.
-
-## Gerçek donanıma geçiş
-`application/ports.py` içindeki `RotationMotor` (lazer okuma + süreli home) ve `CommandButton` arayüzlerini uygulayan yeni sınıflar yazıp `main.py` içinde `ConsoleMotorDriver` yerine röle sürücüsü verin; diğer kodlar değişmez.
-
-`zone.json` kuruluma özel çalışma dosyasıdır; repoya eklemeyin (`.gitignore`).
+Gerçek motor gelince `home_seconds` değeri, motorun 90°'den home'a dönüş süresi ölçülerek ayarlanmalıdır.
