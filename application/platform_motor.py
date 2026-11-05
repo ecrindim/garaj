@@ -1,6 +1,6 @@
 """Gerçek platform motorunun konum mantığı.
 
-- 90° konumu : yakınlık sensörü (E18-D80NK) platform ucundaki metali görür.
+- 90° konumu : platform 90°'ye gelince mekanik limit switch'e basar.
 - Home       : motoru panodaki mekanik switch keser; Pi switch'i okumaz,
                home komutundan `home_seconds` sonra home'a varılmış kabul eder.
 - Ara konum  : bilinmez ve gerekmez. Yön her zaman belli (dışarı = saat yönünün

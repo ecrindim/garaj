@@ -34,7 +34,7 @@ from hardware.indicators import ConsoleStatusIndicator, GpioStatusIndicator
 from hardware.json_zone_repository import JsonZoneRepository
 from hardware.keyboard_listener import KeyBindings, KeyboardListener
 from hardware.photo_recorder import FilePhotoRecorder
-from hardware.proximity_sensor import ProximityPositionSensor
+from hardware.limit_switch import LimitSwitch
 from hardware.event_button import EventButton
 from hardware.ir_remote_listener import IrRemoteListener
 from hardware.simulated_motor import SimulatedMotor
@@ -144,14 +144,14 @@ def build_indicator(config: AppConfig):
 
 def build_motor(config: AppConfig, resources: ExitStack):
     motor_config = config.motor
-    if not motor_config.use_position_sensor:
+    if not motor_config.use_limit_switch:
         logger.info("Motor tam simülasyonda (90° süreyle kabul ediliyor).")
         return SimulatedMotor(motor_config.rotation_seconds)
 
-    sensor = ProximityPositionSensor(motor_config.position_sensor_pin)
-    resources.callback(sensor.close)
-    logger.info("90° konumu E18-D80NK sensöründen okunuyor (GPIO%d).", motor_config.position_sensor_pin)
-    return PlatformMotor(ConsoleMotorDriver(), sensor, motor_config.home_seconds)
+    limit_switch = LimitSwitch(motor_config.limit_switch_pin)
+    resources.callback(limit_switch.close)
+    logger.info("90° konumu limit switch'ten okunuyor (GPIO%d).", motor_config.limit_switch_pin)
+    return PlatformMotor(ConsoleMotorDriver(), limit_switch, motor_config.home_seconds)
 
 
 def build_displays(config: AppConfig, zone_store: ZoneStore):

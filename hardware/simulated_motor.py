@@ -1,8 +1,8 @@
 """Gerçek motor gelene kadar platformun hareketini simüle eder.
 
 Gerçek sistemde:
-  - 90° dönüş (saat yönünün tersine): lazer sensör platform ucundaki
-    metali görünce hedefe varılmış sayılır.
+  - 90° dönüş (saat yönünün tersine): platform mekanik limit switch'e
+    basınca hedefe varılmış sayılır.
   - Home dönüşü (saat yönünde): motoru panodaki mekanik switch keser;
     Pi switch'i okumaz, belirli süre dolunca home'a varılmış kabul eder.
 

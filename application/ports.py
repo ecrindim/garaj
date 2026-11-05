@@ -71,7 +71,7 @@ class MotorDriver(Protocol):
 
 
 class RotatedPositionSensor(Protocol):
-    """Platform 90° konumundayken (metal sensörün önündeyken) True döner."""
+    """Platform 90° konumundayken (limit switch basılıyken) True döner."""
 
     def is_triggered(self) -> bool: ...
 

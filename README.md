@@ -16,7 +16,7 @@ Tek kapı güneyde, garaj odası doğuda. Platform her seferinde **saat yönün�
 - **Home'a dönüş şartı:** Düğmeyle, devamla ya da sıfırlama sonrası home'a dönüşte çevrede canlı olmamalı ve platformda araç varsa güvenli bölgenin sınırını aşmamalıdır.
 - **Acil durdur (kumandada `*`):** Motor durur ve sistem **kilitlenir**. `#` ile sıfırlanana kadar döndürme ve otomatik home çalışmaz.
 - **Sıfırlama (kumandada `#`):** Kilit açılır ve platform home'da değilse **home'a döner**. Araç üstündeyse araçla birlikte döner. Şartlar sağlanmıyorsa (canlı var ya da araç sınırı aşıyor) sağlanana kadar bekler; bu sırada OK yok sayılır.
-- **Zaman aşımı:** Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa (sensör arızası, sıkışma) sistem aynı şekilde kilitlenir.
+- **Zaman aşımı:** Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa (switch arızası, sıkışma) sistem aynı şekilde kilitlenir.
 - **Fiziksel acil stop:** Kumandadaki `*` yazılımsal bir durdurmadır. Motor gücünü Pi'den bağımsız kesen fiziksel acil stop butonu panoda mutlaka olmalıdır.
 
 | Durum | Kırmızı LED | Beyaz LED | Buzzer |
@@ -39,11 +39,11 @@ Fotoğraflar `photos/<tarih>/<saat>_<olay>.jpg` olarak kaydedilir (örnek: `phot
 - **Loglar:** `logs/platform.log` dosyasına yazılır. Her gece yeni dosyaya geçilir (`platform.log.2026-11-04` gibi), son `log_retention_days` (30) günün logları saklanır.
 
 ## Konum algılama
-- **90° konumu:** E18-D80NK kızılötesi yakınlık sensörü platform ucundaki metali görür. Algılama mesafesi sensörün arkasındaki vidayla ayarlanır.
+- **90° konumu:** Platform 90°'ye gelince mekanik limit switch'e basar (switch daha sonra takılacak, kod hazır).
 - **Home:** Motoru panodaki mekanik switch keser. Pi switch'i okumaz; home komutundan `home_seconds` sonra home'a varılmış kabul eder.
 - **Ara konum:** Bilinmez ve gerekmez. Yön her zaman belli (dışarı = saat yönünün tersi, home = saat yönü); motor hedefe varana kadar döner.
 
-Sensör bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotation_seconds` sonra varılır). Sensörü açmak için: `config.py` → `MotorConfig.use_position_sensor = True`.
+Switch bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotation_seconds` sonra varılır). Switch takılınca: `config.py` → `MotorConfig.use_limit_switch = True`.
 
 ## Devre şeması
 ![Devre şeması](docs/devre_semasi.svg)
@@ -54,11 +54,11 @@ Sensör bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotatio
 | Beyaz LED | GPIO27 (13) → 330 Ω → LED → GND |
 | Aktif buzzer | GPIO22 (15) → buzzer + ; buzzer − → GND |
 | KY-022 IR alıcı | `S` → GPIO23 (16), `+` → 3.3V (17), `−` → GND |
-| E18-D80NK | kahverengi → 5V (2), mavi → GND (6), siyah → **10 kΩ** → GPIO24 (18); GPIO24 → **20 kΩ** → GND |
+| 90° limit switch *(planlanan)* | NO kontağın bir ucu → GPIO24 (18), diğer ucu → GND (14) |
 | AI Camera | Şerit kablo → CAM/DISP 0 |
 | Röle modülü *(planlanan, kodda yok)* | IN1 → GPIO5 (29) döndür, IN2 → GPIO6 (31) home |
 
-- **Gerilim bölücü zorunlu:** E18-D80NK çıkışı 5V, Pi pinleri ise 3.3V. Bölücünün orta noktası önü boşken ≈3.3V, cisim varken ≈0V olmalı.
+- **Limit switch:** Pi'nin dahili pull-up direnci kullanılır, ek direnç ya da besleme gerekmez. Switch basılıyken pin LOW okunur. Panodaki (yüksek voltajlı) devreye bağlı bir kontak kullanılmaz; ayrı bir switch ya da switch'in boştaki ikinci kontağı kullanılır.
 - **IR alıcı:** KY-022'yi 3.3V'a bağlayın, 5V'a değil.
 - **Buzzer:** 5V buzzer doğrudan GPIO'ya bağlanmaz; araya NPN transistör (ör. 2N2222) gerekir.
 - **Pano tarafı:** Pano (12–24V / 220V) asla doğrudan Pi'ye bağlanmaz; röle ya da optokuplör kullanılır.
@@ -105,7 +105,7 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 | `CameraConfig.show_preview` | True | Monitör yoksa (SSH) False |
 | `SafetyConfig.zone_*` | merkez 0.5/0.5, yarıçap 0.40 | `zone.json` yoksa kullanılan varsayılan daire |
 | `SafetyConfig.vehicle_labels` / `living_labels` | car / person, cat, dog | Dikkate alınan nesneler |
-| `MotorConfig.use_position_sensor` | False | E18-D80NK bağlandıktan sonra True |
+| `MotorConfig.use_limit_switch` | False | 90° limit switch takıldıktan sonra True |
 | `MotorConfig.rotation_seconds` | 6 | Simülasyonda 90° dönüş süresi |
 | `MotorConfig.home_seconds` | 8 | Home'a varılmış sayılma süresi; gerçek dönüş süresinden biraz uzun olmalı |
 | `MotorConfig.auto_home_seconds` | 10 | Araç görünmezse home'a dönme süresi |
@@ -120,9 +120,9 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 ## Klasör yapısı
 ```
 domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
-application/   Arayüzler (ports), kontrolcü, platform motoru (sensör + süreli home),
+application/   Arayüzler (ports), kontrolcü, platform motoru (limit switch + süreli home),
                ayarlanabilir bölge, araç yokluk sayacı, güvensiz durum izleyici, FPS ölçer
-hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, E18-D80NK sensörü, LED/buzzer,
+hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, 90° limit switch, LED/buzzer,
                motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge ve fotoğraf kaydı
 presentation/  Konsol çıktısı ve önizleme çizimi
 docs/          Devre şeması
@@ -131,6 +131,6 @@ main.py        Bileşenleri bağlayan giriş noktası
 ```
 
 ## Gerçek motora geçiş
-Motor komutları şu an `hardware/console_motor_driver.py` ile ekrana yazılıyor. Röleler bağlanınca `application/ports.py` içindeki `MotorDriver` arayüzünü (`start_rotate_out`, `start_return_home`, `stop`) uygulayan bir röle sürücüsü yazılır ve `main.py` içindeki `build_motor` fonksiyonunda `ConsoleMotorDriver` yerine verilir. Kontrolcü, güvenlik kuralları ve sensör mantığı değişmez.
+Motor komutları şu an `hardware/console_motor_driver.py` ile ekrana yazılıyor. Röleler bağlanınca `application/ports.py` içindeki `MotorDriver` arayüzünü (`start_rotate_out`, `start_return_home`, `stop`) uygulayan bir röle sürücüsü yazılır ve `main.py` içindeki `build_motor` fonksiyonunda `ConsoleMotorDriver` yerine verilir. Kontrolcü, güvenlik kuralları ve switch mantığı değişmez.
 
 Gerçek motor gelince `home_seconds` değeri, motorun 90°'den home'a dönüş süresi ölçülerek ayarlanmalıdır.

@@ -216,7 +216,7 @@ class PlatformController:
         elif self._motion_timed_out():
             self._enter_emergency(
                 f"Hedefe {self._motion_timeout_seconds:.0f} sn içinde varılamadı "
-                "(sensör arızası ya da sıkışma olabilir)"
+                "(limit switch arızası ya da sıkışma olabilir)"
             )
 
     def _on_target_reached(self) -> None:

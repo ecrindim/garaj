@@ -45,14 +45,14 @@ class GpioConfig:
 
 @dataclass(frozen=True)
 class MotorConfig:
-    # True : 90° konumu E18-D80NK sensöründen okunur (motor komutları yine ekrana yazılır).
-    # False: sensör yokken tam simülasyon, 90°'ye `rotation_seconds` sonra varılır.
-    use_position_sensor: bool = False
-    position_sensor_pin: int = 24    # E18-D80NK sinyal ucu (fiziksel pin 18)
+    # True : 90° konumu mekanik limit switch'ten okunur (motor komutları yine ekrana yazılır).
+    # False: switch yokken tam simülasyon, 90°'ye `rotation_seconds` sonra varılır.
+    use_limit_switch: bool = False
+    limit_switch_pin: int = 24       # Switch'in bir ucu GPIO24 (fiziksel pin 18), diğer ucu GND
     rotation_seconds: float = 6.0    # Simülasyonda home ↔ 90° hareketinin süresi
     home_seconds: float = 8.0        # Home komutundan sonra bu süre dolunca home'a varılmış sayılır
     auto_home_seconds: float = 10.0  # Platform dönmüşken bu kadar süre araç görünmezse home'a dön
-    # Bir hareket bu süre içinde hedefe varmazsa (sensör arızası, sıkışma) acil durdurulur
+    # Bir hareket bu süre içinde hedefe varmazsa (switch arızası, sıkışma) acil durdurulur
     motion_timeout_seconds: float = 20.0
 
 
