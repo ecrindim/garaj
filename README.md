@@ -16,7 +16,11 @@ Tek kapı güneyde, garaj odası doğuda. Platform her seferinde **saat yönün�
 - **Home'a dönüş şartı:** Düğmeyle, devamla ya da sıfırlama sonrası home'a dönüşte çevrede canlı olmamalı ve platformda araç varsa güvenli bölgenin sınırını aşmamalıdır.
 - **Acil durdur (kumandada `*`):** Motor durur ve sistem **kilitlenir**. `#` ile sıfırlanana kadar döndürme ve otomatik home çalışmaz.
 - **Sıfırlama (kumandada `#`):** Kilit açılır ve platform home'da değilse **home'a döner**. Araç üstündeyse araçla birlikte döner. Şartlar sağlanmıyorsa (canlı var ya da araç sınırı aşıyor) sağlanana kadar bekler; bu sırada OK yok sayılır.
-- **Zaman aşımı:** Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa (switch arızası, sıkışma) sistem aynı şekilde kilitlenir.
+- **Otomatik acil durdurma:** Şu durumlarda sistem kendiliğinden kilitlenir:
+  - Home ve 90° switch'leri aynı anda basılı (kablo ya da switch arızası). Arıza sürdükçe `#` sıfırlamaz.
+  - Motor çalıştırıldı ama platform `departure_timeout_seconds` (3 sn) içinde başlangıç switch'inden ayrılmadı (motor, röle ya da pano arızası).
+  - Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmadı (sıkışma, switch arızası).
+- **Röle güvenliği:** İki röle asla aynı anda çekmez; yön değişiminde aralarında 0,5 sn beklenir. Röleler GPIO2/GPIO3'te olduğu için (kart üzerinde pull-up) Pi açılırken ya da program çalışmıyorken bırakık kalır.
 - **Fiziksel acil stop:** Kumandadaki `*` yazılımsal bir durdurmadır. Motor gücünü Pi'den bağımsız kesen fiziksel acil stop butonu panoda mutlaka olmalıdır.
 
 | Durum | Kırmızı LED | Beyaz LED | Buzzer |
@@ -38,12 +42,10 @@ Fotoğraflar `photos/<tarih>/<saat>_<olay>.jpg` olarak kaydedilir (örnek: `phot
 - **Fotoğraf saklama:** `PhotoConfig.retention_days` (30) günden eski fotoğraf klasörleri program açılışında silinir.
 - **Loglar:** `logs/platform.log` dosyasına yazılır. Her gece yeni dosyaya geçilir (`platform.log.2026-11-04` gibi), son `log_retention_days` (30) günün logları saklanır.
 
-## Konum algılama
-- **90° konumu:** Platform 90°'ye gelince mekanik limit switch'e basar (switch daha sonra takılacak, kod hazır).
-- **Home:** Motoru panodaki mekanik switch keser. Pi switch'i okumaz; home komutundan `home_seconds` sonra home'a varılmış kabul eder.
-- **Ara konum:** Bilinmez ve gerekmez. Yön her zaman belli (dışarı = saat yönünün tersi, home = saat yönü); motor hedefe varana kadar döner.
-
-Switch bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotation_seconds` sonra varılır). Switch takılınca: `config.py` → `MotorConfig.use_limit_switch = True`.
+## Konum algılama ve motor kontrolü
+- **Konum:** İki mekanik limit switch okunur. Home switch'i basılıysa HOME, 90° switch'i basılıysa DÖNMÜŞ, ikisi de bırakıksa ARADA, ikisi birden basılıysa ARIZA. Switch'ler panodaki (motoru uçlarda kesen) switch'lerin yanına **ayrı** olarak takılır.
+- **Motor:** Pi, 4 kanallı röle modülünün iki kanalıyla panoya "döndür" (saat yönünün tersi) ve "home" (saat yönü) sinyali verir. Motoru pano çalıştırır; panodaki limit switch'ler ve yön kilitlemesi görevini sürdürür. Motor akımı röleden geçmez.
+- **Simülasyon:** Switch'ler ya da röleler bağlanmadan da sistem çalışır. `use_limit_switches = False` iken konum süreyle simüle edilir; `use_relays = False` iken motor komutları ekrana yazılır. İkisi bağımsızdır; örneğin switch'ler gelmeden röle ve pano bağlantısı test edilebilir.
 
 ## Devre şeması
 ![Devre şeması](docs/devre_semasi.svg)
@@ -54,11 +56,16 @@ Switch bağlanmamışken sistem tam simülasyonda çalışır (90°'ye `rotation
 | Beyaz LED | GPIO27 (13) → 330 Ω → LED → GND |
 | Aktif buzzer | GPIO22 (15) → buzzer + ; buzzer − → GND |
 | KY-022 IR alıcı | `S` → GPIO23 (16), `+` → 3.3V (17), `−` → GND |
-| 90° limit switch *(planlanan)* | NO kontağın bir ucu → GPIO24 (18), diğer ucu → GND (14) |
+| Home limit switch | NO kontağın bir ucu → GPIO4 (7), diğer ucu → GND (9) |
+| 90° limit switch | NO kontağın bir ucu → GPIO24 (18), diğer ucu → GND (14) |
 | AI Camera | Şerit kablo → CAM/DISP 0 |
-| Röle modülü *(planlanan, kodda yok)* | IN1 → GPIO5 (29) döndür, IN2 → GPIO6 (31) home |
+| Röle modülü (giriş tarafı) | VCC → 3.3V (1), IN1 → GPIO2 (3) döndür, IN2 → GPIO3 (5) home; giriş tarafı GND **bağlanmaz** |
+| Röle modülü (güç tarafı) | JD-VCC jumper'ı **çıkarılır**; JD-VCC ve GND → **ayrı 5V adaptör** |
+| Röle kontakları → pano | Röle 1 COM–NO → pano "döndür", röle 2 COM–NO → pano "home" (elektrikçi) |
 
-- **Limit switch:** Pi'nin dahili pull-up direnci kullanılır, ek direnç ya da besleme gerekmez. Switch basılıyken pin LOW okunur. Panodaki (yüksek voltajlı) devreye bağlı bir kontak kullanılmaz; ayrı bir switch ya da switch'in boştaki ikinci kontağı kullanılır.
+- **Limit switch'ler:** Pi'nin dahili pull-up direnci kullanılır, ek direnç ya da besleme gerekmez. Switch basılıyken pin LOW okunur. Panodaki (yüksek voltajlı) devreye bağlı bir kontak kullanılmaz.
+- **Röle modülü:** Giriş tarafı Pi'nin 3.3V'u ile beslendiği için aktif-LOW röleler düzgün çeker ve bırakır. Röle bobinleri ayrı 5V adaptörden beslenir ve adaptörün GND'si Pi'ye bağlanmaz; optokuplör yalıtımı bu sayede korunur.
+- **Pano bağlantısı (elektrikçi):** Sadece NO kontak kullanılır. Panoda mühürleme (self-hold) olmamalı: motor yalnızca röle kapalıyken dönmeli, röle açılınca durmalı. Böylece Pi canlı gördüğünde ya da acil durdurmada motoru durdurabilir; Pi'nin ya da elektriğin kesilmesi de motoru durdurur. Panoda iki yönün aynı anda çalışmasını engelleyen elektriksel kilitleme bulunmalı.
 - **IR alıcı:** KY-022'yi 3.3V'a bağlayın, 5V'a değil.
 - **Buzzer:** 5V buzzer doğrudan GPIO'ya bağlanmaz; araya NPN transistör (ör. 2N2222) gerekir.
 - **Pano tarafı:** Pano (12–24V / 220V) asla doğrudan Pi'ye bağlanmaz; röle ya da optokuplör kullanılır.
@@ -105,9 +112,14 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 | `CameraConfig.show_preview` | True | Monitör yoksa (SSH) False |
 | `SafetyConfig.zone_*` | merkez 0.5/0.5, yarıçap 0.40 | `zone.json` yoksa kullanılan varsayılan daire |
 | `SafetyConfig.vehicle_labels` / `living_labels` | car / person, cat, dog | Dikkate alınan nesneler |
-| `MotorConfig.use_limit_switch` | False | 90° limit switch takıldıktan sonra True |
+| `MotorConfig.use_limit_switches` | False | Home ve 90° switch'leri takıldıktan sonra True |
+| `MotorConfig.home_switch_pin` / `rotated_switch_pin` | 4 / 24 | Switch pinleri |
+| `MotorConfig.departure_timeout_seconds` | 3 | Motor çalışınca platformun switch'ten ayrılması için süre |
+| `MotorConfig.use_relays` | False | Röle modülü ve pano bağlantısı yapıldıktan sonra True |
+| `MotorConfig.rotate_relay_pin` / `home_relay_pin` | 2 / 3 | Röle pinleri |
+| `MotorConfig.relay_active_low` | True | Modül IN pini LOW olunca çeker |
+| `MotorConfig.relay_dead_time_seconds` | 0.5 | Yön değişiminde iki röle arasındaki bekleme |
 | `MotorConfig.rotation_seconds` | 6 | Simülasyonda 90° dönüş süresi |
-| `MotorConfig.home_seconds` | 8 | Home'a varılmış sayılma süresi; gerçek dönüş süresinden biraz uzun olmalı |
 | `MotorConfig.auto_home_seconds` | 10 | Araç görünmezse home'a dönme süresi |
 | `MotorConfig.motion_timeout_seconds` | 20 | Hedefe varılamazsa acil durdurma süresi |
 | `IrRemoteConfig.*_code` | OK 0x1C, * 0x16, # 0x0D | Kumanda tuş kodları |
@@ -120,17 +132,17 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 ## Klasör yapısı
 ```
 domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
-application/   Arayüzler (ports), kontrolcü, platform motoru (limit switch + süreli home),
+application/   Arayüzler (ports), kontrolcü, platform motoru (iki limit switch),
                ayarlanabilir bölge, araç yokluk sayacı, güvensiz durum izleyici, FPS ölçer
-hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, 90° limit switch, LED/buzzer,
-               motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge ve fotoğraf kaydı
+hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, limit switch'ler, röle sürücüsü, LED/buzzer,
+               ekrana yazan motor sürücüsü, simüle motor, bölge ve fotoğraf kaydı
 presentation/  Konsol çıktısı ve önizleme çizimi
 docs/          Devre şeması
 config.py      Tüm ayarlar
 main.py        Bileşenleri bağlayan giriş noktası
 ```
 
-## Gerçek motora geçiş
-Motor komutları şu an `hardware/console_motor_driver.py` ile ekrana yazılıyor. Röleler bağlanınca `application/ports.py` içindeki `MotorDriver` arayüzünü (`start_rotate_out`, `start_return_home`, `stop`) uygulayan bir röle sürücüsü yazılır ve `main.py` içindeki `build_motor` fonksiyonunda `ConsoleMotorDriver` yerine verilir. Kontrolcü, güvenlik kuralları ve switch mantığı değişmez.
-
-Gerçek motor gelince `home_seconds` değeri, motorun 90°'den home'a dönüş süresi ölçülerek ayarlanmalıdır.
+## Gerçek donanıma geçiş (sırasıyla)
+1. **Röle testi (motor bağlı değilken):** Röle modülünü bağlayın, `use_relays = True` yapın. `d` ile döndürünce röle 1'in, home'da röle 2'nin çektiğini (LED ve tık sesi) ve `x` ile ikisinin de bıraktığını kontrol edin. Program kapalıyken röleler bırakık olmalı.
+2. **Switch testi:** Switch'leri bağlayıp `use_limit_switches = True` yapın. Switch'lere elle basarak konsoldaki `Konum: HOME / DÖNMÜŞ / ARADA` değerini kontrol edin. İkisine birden basınca sistemin acil durdurmaya geçtiğini görün.
+3. **Pano bağlantısı:** Elektrikçi röle kontaklarını panoya bağladıktan sonra platformu boşken, fiziksel acil stop butonunun yanında durarak deneyin.

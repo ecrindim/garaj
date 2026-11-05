@@ -1,13 +1,9 @@
 """Gerçek motor gelene kadar platformun hareketini simüle eder.
 
-Gerçek sistemde:
-  - 90° dönüş (saat yönünün tersine): platform mekanik limit switch'e
-    basınca hedefe varılmış sayılır.
-  - Home dönüşü (saat yönünde): motoru panodaki mekanik switch keser;
-    Pi switch'i okumaz, belirli süre dolunca home'a varılmış kabul eder.
-
-Simülasyonda platformun home'dan uzaklığı 0..1 arasında tutulur ve süreye
-göre ilerler. Hareket yarıda kesilirse konum korunur.
+Limit switch'ler takılmadan önce kullanılır. Platformun home'dan uzaklığı
+0..1 arasında tutulur ve süreye göre ilerler; hareket yarıda kesilirse konum
+korunur. Komutlar verilen `MotorDriver`'a iletilir: röleler bağlıysa gerçek
+motor da döner (switch'ler gelmeden röle/pano bağlantısını test etmek için).
 """
 from __future__ import annotations
 
@@ -15,7 +11,7 @@ import logging
 import time
 from typing import Callable, Optional
 
-from application.ports import PlatformPosition
+from application.ports import MotorDriver, PlatformPosition
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +20,14 @@ ROTATED_PROGRESS = 1.0
 
 
 class SimulatedMotor:
-    def __init__(self, rotation_seconds: float, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+        self,
+        rotation_seconds: float,
+        driver: MotorDriver,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._rotation_seconds = rotation_seconds
+        self._driver = driver
         self._clock = clock
         self._progress = HOME_PROGRESS
         self._target: Optional[float] = None
@@ -42,16 +44,22 @@ class SimulatedMotor:
 
     def rotate_out(self) -> None:
         self._start(ROTATED_PROGRESS)
-        logger.info(">>> MOTOR DÖNÜYOR → 90° saat yönünün tersine (simülasyon, konum %%%d)", self._percent())
+        logger.info("Simülasyon: 90°'ye dönüş başladı (konum %%%d)", self._percent())
+        self._driver.start_rotate_out()
 
     def return_home(self) -> None:
         self._start(HOME_PROGRESS)
-        logger.info(">>> MOTOR HOME'A DÖNÜYOR → saat yönünde (simülasyon, konum %%%d)", self._percent())
+        logger.info("Simülasyon: home'a dönüş başladı (konum %%%d)", self._percent())
+        self._driver.start_return_home()
 
     def stop(self) -> None:
         self._advance()
         self._target = None
-        logger.info(">>> MOTOR DURDU (konum %%%d)", self._percent())
+        self._driver.stop()
+        logger.info("Simülasyon: durdu (konum %%%d)", self._percent())
+
+    def failed_to_depart(self) -> bool:
+        return False  # Simülasyonda motor her zaman hareket eder
 
     def has_reached_target(self) -> bool:
         self._advance()

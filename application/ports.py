@@ -25,6 +25,7 @@ class PlatformPosition(Enum):
     HOME = "HOME"
     ROTATED = "DÖNMÜŞ"
     BETWEEN = "ARADA"  # Hareket yarıda kesildi
+    FAULT = "ARIZA"    # Home ve 90° switch'leri aynı anda basılı (kablo/switch arızası)
 
 
 
@@ -60,18 +61,19 @@ class RotationMotor(Protocol):
     def return_home(self) -> None: ...
     def stop(self) -> None: ...
     def has_reached_target(self) -> bool: ...
+    def failed_to_depart(self) -> bool: ...  # Motor çalıştı ama platform başlangıç switch'inden ayrılmadı
 
 
 class MotorDriver(Protocol):
-    """Motora fiziksel komut verir (şimdilik ekrana yazar, ileride röle)."""
+    """Motora fiziksel komut verir: röleler ya da (röle yokken) ekrana yazı."""
 
     def start_rotate_out(self) -> None: ...  # Saat yönünün tersine
     def start_return_home(self) -> None: ...  # Saat yönünde
     def stop(self) -> None: ...
 
 
-class RotatedPositionSensor(Protocol):
-    """Platform 90° konumundayken (limit switch basılıyken) True döner."""
+class PositionSwitch(Protocol):
+    """Platform switch'in bulunduğu konumdayken (switch basılıyken) True döner."""
 
     def is_triggered(self) -> bool: ...
 

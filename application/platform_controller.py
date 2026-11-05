@@ -22,7 +22,10 @@ Otomatik:
 
 Acil durdurma (kumandada *): motor durur, sistem kilitlenir. Sıfırlama
 (kumandada #) sonrası platform home'a döner (çevrede canlı yoksa).
-Bir hareket `motion_timeout_seconds` içinde hedefe varmazsa da acil durdurulur.
+Ayrıca şu durumlarda sistem kendiliğinden acil durdurulur:
+- Home ve 90° switch'leri aynı anda basılı (kablo/switch arızası).
+- Motor çalıştırıldı ama platform başlangıç switch'inden ayrılmadı (motor dönmüyor).
+- Bir hareket `motion_timeout_seconds` içinde hedefe varmadı (sıkışma, switch arızası).
 
 Fotoğraf: dönüş onaylanınca, araç platformdayken döndürme reddedilince,
 araç platformdayken çevrede canlı belirince ve dönüş tamamlanınca.
@@ -113,6 +116,8 @@ class PlatformController:
 
         if emergency_pressed:
             self._enter_emergency("Acil durdur butonuna basıldı")
+        elif self._switch_fault_detected():
+            self._enter_emergency("Home ve 90° switch'leri aynı anda basılı (kablo ya da switch arızası)")
         elif self._state is PlatformState.EMERGENCY_STOPPED:
             self._handle_emergency(button_pressed, reset_pressed)
         elif self._state is PlatformState.IDLE:
@@ -213,6 +218,8 @@ class PlatformController:
             self._stop_motion()
         elif self._motor.has_reached_target():
             self._on_target_reached()
+        elif self._motor.failed_to_depart():
+            self._enter_emergency("Motor çalıştırıldı ama platform hareket etmedi (motor, röle ya da pano arızası)")
         elif self._motion_timed_out():
             self._enter_emergency(
                 f"Hedefe {self._motion_timeout_seconds:.0f} sn içinde varılamadı "
@@ -227,6 +234,12 @@ class PlatformController:
             logger.info("Platform home konumunda.")
         self._interrupted_motion = None
         self._stop_motion()
+
+    def _switch_fault_detected(self) -> bool:
+        return (
+            self._state is not PlatformState.EMERGENCY_STOPPED
+            and self._motor.position is PlatformPosition.FAULT
+        )
 
     def _motion_timed_out(self) -> bool:
         return self._clock() - self._motion_started_at >= self._motion_timeout_seconds
@@ -243,7 +256,9 @@ class PlatformController:
         self._indicator.show_emergency()
 
     def _handle_emergency(self, button_pressed: bool, reset_pressed: bool) -> None:
-        if reset_pressed:
+        if reset_pressed and self._motor.position is PlatformPosition.FAULT:
+            logger.warning("Switch arızası sürüyor, sıfırlama yapılamaz. Önce arızayı giderin.")
+        elif reset_pressed:
             logger.info("Acil durdurma sıfırlandı.")
             self._state = PlatformState.IDLE
             self._interrupted_motion = None

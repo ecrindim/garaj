@@ -45,12 +45,22 @@ class GpioConfig:
 
 @dataclass(frozen=True)
 class MotorConfig:
-    # True : 90° konumu mekanik limit switch'ten okunur (motor komutları yine ekrana yazılır).
-    # False: switch yokken tam simülasyon, 90°'ye `rotation_seconds` sonra varılır.
-    use_limit_switch: bool = False
-    limit_switch_pin: int = 24       # Switch'in bir ucu GPIO24 (fiziksel pin 18), diğer ucu GND
-    rotation_seconds: float = 6.0    # Simülasyonda home ↔ 90° hareketinin süresi
-    home_seconds: float = 8.0        # Home komutundan sonra bu süre dolunca home'a varılmış sayılır
+    # --- Konum: iki mekanik limit switch (NO kontak, bir ucu GPIO, diğer ucu GND) ---
+    # False: switch'ler takılmadan simülasyon, hedefe `rotation_seconds` sonra varılır.
+    use_limit_switches: bool = False
+    home_switch_pin: int = 4          # GPIO4  (fiziksel pin 7)
+    rotated_switch_pin: int = 24      # GPIO24 (fiziksel pin 18)
+    # Motor çalıştıktan bu süre sonra platform hâlâ başlangıç switch'indeyse acil durdurulur
+    departure_timeout_seconds: float = 3.0
+    rotation_seconds: float = 6.0     # Simülasyonda home ↔ 90° hareketinin süresi
+
+    # --- Motor komutu: 4 kanallı röle modülü (SRD-05VDC-SL-C), JD-VCC jumper'ı çıkarılmış ---
+    # False: röleler yerine komutlar ekrana yazılır.
+    use_relays: bool = False
+    rotate_relay_pin: int = 2         # GPIO2 (fiziksel pin 3) → IN1: saat yönünün tersine (90°)
+    home_relay_pin: int = 3           # GPIO3 (fiziksel pin 5) → IN2: saat yönünde (home)
+    relay_active_low: bool = True     # Modül IN pini LOW olunca çeker
+    relay_dead_time_seconds: float = 0.5  # Yön değişiminde iki röle arasındaki bekleme
     auto_home_seconds: float = 10.0  # Platform dönmüşken bu kadar süre araç görünmezse home'a dön
     # Bir hareket bu süre içinde hedefe varmazsa (switch arızası, sıkışma) acil durdurulur
     motion_timeout_seconds: float = 20.0

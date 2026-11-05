@@ -35,6 +35,7 @@ from hardware.json_zone_repository import JsonZoneRepository
 from hardware.keyboard_listener import KeyBindings, KeyboardListener
 from hardware.photo_recorder import FilePhotoRecorder
 from hardware.limit_switch import LimitSwitch
+from hardware.relay_motor_driver import RelayMotorDriver
 from hardware.event_button import EventButton
 from hardware.ir_remote_listener import IrRemoteListener
 from hardware.simulated_motor import SimulatedMotor
@@ -142,16 +143,38 @@ def build_indicator(config: AppConfig):
         return ConsoleStatusIndicator()
 
 
+def build_motor_driver(config: AppConfig, resources: ExitStack):
+    motor_config = config.motor
+    if not motor_config.use_relays:
+        logger.info("Röleler kapalı; motor komutları ekrana yazılacak.")
+        return ConsoleMotorDriver()
+
+    driver = RelayMotorDriver(
+        motor_config.rotate_relay_pin,
+        motor_config.home_relay_pin,
+        motor_config.relay_active_low,
+        motor_config.relay_dead_time_seconds,
+    )
+    resources.callback(driver.close)
+    logger.info("Motor röleleri aktif (döndür GPIO%d, home GPIO%d).",
+                motor_config.rotate_relay_pin, motor_config.home_relay_pin)
+    return driver
+
+
 def build_motor(config: AppConfig, resources: ExitStack):
     motor_config = config.motor
-    if not motor_config.use_limit_switch:
-        logger.info("Motor tam simülasyonda (90° süreyle kabul ediliyor).")
-        return SimulatedMotor(motor_config.rotation_seconds)
+    driver = build_motor_driver(config, resources)
+    if not motor_config.use_limit_switches:
+        logger.info("Limit switch'ler kapalı; konum süreyle simüle ediliyor.")
+        return SimulatedMotor(motor_config.rotation_seconds, driver)
 
-    limit_switch = LimitSwitch(motor_config.limit_switch_pin)
-    resources.callback(limit_switch.close)
-    logger.info("90° konumu limit switch'ten okunuyor (GPIO%d).", motor_config.limit_switch_pin)
-    return PlatformMotor(ConsoleMotorDriver(), limit_switch, motor_config.home_seconds)
+    home_switch = LimitSwitch(motor_config.home_switch_pin)
+    rotated_switch = LimitSwitch(motor_config.rotated_switch_pin)
+    resources.callback(home_switch.close)
+    resources.callback(rotated_switch.close)
+    logger.info("Konum limit switch'lerden okunuyor (home GPIO%d, 90° GPIO%d).",
+                motor_config.home_switch_pin, motor_config.rotated_switch_pin)
+    return PlatformMotor(driver, home_switch, rotated_switch, motor_config.departure_timeout_seconds)
 
 
 def build_displays(config: AppConfig, zone_store: ZoneStore):

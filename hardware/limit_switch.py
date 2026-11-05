@@ -1,8 +1,8 @@
-"""90° konumundaki mekanik limit switch'i okur.
+"""Mekanik limit switch okuma (home ve 90° switch'leri için).
 
 Bağlantı: switch'in NO (normalde açık) kontağının bir ucu GPIO pinine, diğer
-ucu GND'ye. Pi'nin dahili pull-up direnci açılır; platform 90°'ye gelip
-switch'e bastığında pin LOW olur ve `is_triggered()` True döner.
+ucu GND'ye. Pi'nin dahili pull-up direnci açılır; platform switch'e
+bastığında pin LOW olur ve `is_triggered()` True döner.
 
 Switch Pi'nin 3.3V'u ile çalışır; ayrı bir besleme ya da gerilim bölücü
 gerekmez. Panodaki (yüksek voltajlı) devreye bağlı bir kontak KULLANILMAZ.
