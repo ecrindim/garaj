@@ -57,6 +57,13 @@ class MotorConfig:
 
 
 @dataclass(frozen=True)
+class PhotoConfig:
+    directory: str = "photos"             # photos/2026-11-04/14-32-05-123_<olay>.jpg
+    retention_days: int = 30              # Daha eski fotoğraf klasörleri açılışta silinir
+    unsafe_cooldown_seconds: float = 10.0  # Güvensiz durum fotoğrafları arasında en az bu kadar
+
+
+@dataclass(frozen=True)
 class IrRemoteConfig:
     enabled: bool = True
     driver_name: str = "gpio_ir_recv"  # gpio-ir sürücüsü; LIRC aygıtı buna göre bulunur
@@ -93,4 +100,6 @@ class AppConfig:
     motor: MotorConfig = field(default_factory=MotorConfig)
     keyboard: KeyboardConfig = field(default_factory=KeyboardConfig)
     ir_remote: IrRemoteConfig = field(default_factory=IrRemoteConfig)
-    log_file: str = "logs/platform.log"
+    photos: PhotoConfig = field(default_factory=PhotoConfig)
+    log_file: str = "logs/platform.log"  # Her gece yeni dosyaya geçilir (platform.log.2026-11-04)
+    log_retention_days: int = 30

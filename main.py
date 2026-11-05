@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from logging.handlers import TimedRotatingFileHandler
 import threading
 from dataclasses import dataclass
 from typing import Callable
@@ -19,6 +20,7 @@ from pathlib import Path
 from application.fps_meter import FpsMeter
 from application.platform_controller import PlatformController
 from application.platform_motor import PlatformMotor
+from application.unsafe_situation_watcher import UnsafeSituationWatcher
 from application.vehicle_absence_timer import VehicleAbsenceTimer
 from application.zone_store import ZoneStore
 from config import AppConfig
@@ -31,6 +33,7 @@ from hardware.imx500_detector import Imx500Detector
 from hardware.indicators import ConsoleStatusIndicator, GpioStatusIndicator
 from hardware.json_zone_repository import JsonZoneRepository
 from hardware.keyboard_listener import KeyBindings, KeyboardListener
+from hardware.photo_recorder import FilePhotoRecorder
 from hardware.proximity_sensor import ProximityPositionSensor
 from hardware.event_button import EventButton
 from hardware.ir_remote_listener import IrRemoteListener
@@ -48,12 +51,15 @@ def configure_console_encoding() -> None:
             stream.reconfigure(encoding="utf-8", errors="replace")
 
 
-def configure_logging(log_file: str) -> None:
+def configure_logging(log_file: str, retention_days: int) -> None:
     Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+    file_handler = TimedRotatingFileHandler(
+        log_file, when="midnight", backupCount=retention_days, encoding="utf-8"
+    )
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler(), logging.FileHandler(log_file, encoding="utf-8")],
+        handlers=[logging.StreamHandler(), file_handler],
     )
 
 
@@ -179,7 +185,7 @@ def _join(keys: tuple[str, ...]) -> str:
 def main() -> None:
     configure_console_encoding()
     config = AppConfig()
-    configure_logging(config.log_file)
+    configure_logging(config.log_file, config.log_retention_days)
 
     classifier = LabelClassifier(config.safety.vehicle_labels, config.safety.living_labels)
     zone_store = build_zone_store(config)
@@ -193,6 +199,11 @@ def main() -> None:
             config.camera, classifier, frame_callback=overlay.draw if overlay else None
         )
         resources.callback(detector.close)
+
+        photo_recorder = FilePhotoRecorder(
+            detector, config.photos.directory, config.photos.retention_days
+        )
+        photo_recorder.delete_expired()
 
         indicator = build_indicator(config)
         resources.callback(indicator.close)
@@ -214,6 +225,8 @@ def main() -> None:
             emergency_button=buttons.emergency,
             reset_button=buttons.reset,
             motion_timeout_seconds=config.motor.motion_timeout_seconds,
+            photo_recorder=photo_recorder,
+            unsafe_watcher=UnsafeSituationWatcher(config.photos.unsafe_cooldown_seconds),
         )
 
         print_help(config)

@@ -76,6 +76,23 @@ class RotatedPositionSensor(Protocol):
     def is_triggered(self) -> bool: ...
 
 
+class PhotoEvent(Enum):
+    """Fotoğraf çekilen olaylar; dosya adında kullanılır (ASCII)."""
+
+    ROTATION_APPROVED = "dondurme_onaylandi"
+    ROTATION_REJECTED = "dondurme_reddedildi"
+    UNSAFE_SITUATION = "guvensiz_durum"
+    ROTATION_COMPLETED = "dondurme_tamamlandi"
+
+
+class PhotoRecorder(Protocol):
+    def capture(self, event: PhotoEvent) -> None: ...
+
+
+class SnapshotCamera(Protocol):
+    def save_snapshot(self, path: str) -> None: ...
+
+
 class CommandButton(Protocol):
     def was_pressed(self) -> bool: ...
 

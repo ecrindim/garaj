@@ -11,8 +11,11 @@ Tek kapı güneyde, garaj odası doğuda. Platform her seferinde **saat yönün�
 
 ## Güvenlik kuralları
 - **Döndürme şartı:** Araç kutusu **yuvarlak** güvenli bölgenin **tamamen içinde** olmalı ve çevrede canlı (insan, kedi, köpek) olmamalı. Araç kutusunun içinde kalan canlılar araç içi sayılıp yok sayılır.
-- **Hareket sırasında:** Canlı görülürse motor hemen durur. Araç konumu kontrol edilmez, çünkü dönen aracın kutusu daireden taşabilir.
+- **Hareket sırasında:** Canlı görülürse motor hemen durur. Hareket sürerken araç konumuna bakılmaz.
+- **Kaldığı yerden devam:** Platform yarıda durduysa OK'e basınca **kesilen hareket** sürdürülür: dönüyorduysa 90°'ye, home'a dönüyorduysa home'a. Dönüşe devam için normal döndürme şartları aranır. Güvenli daire, yarı dönmüş aracın kutusu da sığacak şekilde ayarlanmalıdır; taşıyorsa bir sorun var demektir ve platform hareket etmez (red fotoğrafı çekilir).
+- **Home'a dönüş şartı:** Düğmeyle, devamla ya da sıfırlama sonrası home'a dönüşte çevrede canlı olmamalı ve platformda araç varsa güvenli bölgenin sınırını aşmamalıdır.
 - **Acil durdur (kumandada `*`):** Motor durur ve sistem **kilitlenir**. `#` ile sıfırlanana kadar döndürme ve otomatik home çalışmaz.
+- **Sıfırlama (kumandada `#`):** Kilit açılır ve platform home'da değilse **home'a döner**. Araç üstündeyse araçla birlikte döner. Şartlar sağlanmıyorsa (canlı var ya da araç sınırı aşıyor) sağlanana kadar bekler; bu sırada OK yok sayılır.
 - **Zaman aşımı:** Bir hareket `motion_timeout_seconds` (20 sn) içinde hedefe varmazsa (sensör arızası, sıkışma) sistem aynı şekilde kilitlenir.
 - **Fiziksel acil stop:** Kumandadaki `*` yazılımsal bir durdurmadır. Motor gücünü Pi'den bağımsız kesen fiziksel acil stop butonu panoda mutlaka olmalıdır.
 
@@ -21,6 +24,19 @@ Tek kapı güneyde, garaj odası doğuda. Platform her seferinde **saat yönün�
 | Duruyor | Açık | Kapalı | Sessiz |
 | Dönüyor / home'a dönüyor | Kapalı | Açık | Kesikli |
 | Acil durduruldu | Hızlı yanıp söner | Kapalı | Sürekli |
+
+## Fotoğraf ve log kaydı
+Fotoğraflar `photos/<tarih>/<saat>_<olay>.jpg` olarak kaydedilir (örnek: `photos/2026-11-04/14-32-05-123_dondurme_onaylandi.jpg`). Önizlemedeki daire ve tespit kutuları fotoğrafta da görünür.
+
+| Olay | Dosya adı eki |
+|---|---|
+| Dönüş onaylandı (ya da yarıda kalan dönüş sürdürüldü) | `dondurme_onaylandi` |
+| Araç platformdayken döndürme, devam ya da home dönüşü reddedildi | `dondurme_reddedildi` |
+| Araç platformdayken çevrede canlı belirdi (en fazla 10 sn'de bir) | `guvensiz_durum` |
+| Dönüş tamamlandı | `dondurme_tamamlandi` |
+
+- **Fotoğraf saklama:** `PhotoConfig.retention_days` (30) günden eski fotoğraf klasörleri program açılışında silinir.
+- **Loglar:** `logs/platform.log` dosyasına yazılır. Her gece yeni dosyaya geçilir (`platform.log.2026-11-04` gibi), son `log_retention_days` (30) günün logları saklanır.
 
 ## Konum algılama
 - **90° konumu:** E18-D80NK kızılötesi yakınlık sensörü platform ucundaki metali görür. Algılama mesafesi sensörün arkasındaki vidayla ayarlanır.
@@ -79,7 +95,6 @@ python3 main.py
 - **Klavye:** Tuşlar terminale gider. Önizleme penceresi açıksa tuşlamadan önce terminal penceresine tıklayın.
 - **Tanımsız tuş ya da kod:** Terminalde `Tanımsız tuş geldi` ya da `Tanımsız IR kodu geldi: 0x..` yazar. Kodu `KeyboardConfig` ya da `IrRemoteConfig` içine ekleyebilirsiniz.
 - **Kumanda yoksa:** Kumanda bulunamazsa sistem klavyeyle çalışmaya devam eder.
-- **Loglar:** `logs/platform.log` dosyasına da yazılır.
 
 Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA), komut, araç/canlı bilgisi ve home geri sayımını gösterir. Önizlemede güvenli daire (güvenliyse yeşil, değilse kırmızı) ve tespit kutuları çizilir.
 
@@ -96,15 +111,19 @@ Konsolda durum satırı FPS, düğme, motor durumu, konum (HOME/DÖNMÜŞ/ARADA)
 | `MotorConfig.auto_home_seconds` | 10 | Araç görünmezse home'a dönme süresi |
 | `MotorConfig.motion_timeout_seconds` | 20 | Hedefe varılamazsa acil durdurma süresi |
 | `IrRemoteConfig.*_code` | OK 0x1C, * 0x16, # 0x0D | Kumanda tuş kodları |
+| `PhotoConfig.directory` | photos | Fotoğraf klasörü |
+| `PhotoConfig.retention_days` | 30 | Fotoğraf saklama süresi (gün) |
+| `PhotoConfig.unsafe_cooldown_seconds` | 10 | Güvensiz durum fotoğrafları arasındaki en kısa süre |
+| `log_retention_days` | 30 | Log saklama süresi (gün) |
 | `GpioConfig.*_pin` | 17 / 27 / 22 | LED ve buzzer pinleri |
 
 ## Klasör yapısı
 ```
 domain/        İş kuralları (donanımdan bağımsız): geometri, yuvarlak bölge, tespit, güvenlik
 application/   Arayüzler (ports), kontrolcü, platform motoru (sensör + süreli home),
-               ayarlanabilir bölge, araç yokluk sayacı, FPS ölçer
+               ayarlanabilir bölge, araç yokluk sayacı, güvensiz durum izleyici, FPS ölçer
 hardware/      AI Camera, IR kumanda (ham LIRC + NEC çözücü), klavye, E18-D80NK sensörü, LED/buzzer,
-               motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge kaydı
+               motor sürücüsü (şimdilik ekrana yazar), simüle motor, bölge ve fotoğraf kaydı
 presentation/  Konsol çıktısı ve önizleme çizimi
 docs/          Devre şeması
 config.py      Tüm ayarlar

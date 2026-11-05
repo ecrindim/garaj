@@ -57,6 +57,10 @@ class Imx500Detector:
         self._last_detections = detections
         return detections
 
+    def save_snapshot(self, path: str) -> None:
+        """Ana görüntüyü (önizleme çizimleriyle birlikte) dosyaya kaydeder."""
+        self._picam2.capture_file(path)
+
     def close(self) -> None:
         self._picam2.stop()
         self._picam2.close()

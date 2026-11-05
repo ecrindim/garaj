@@ -37,6 +37,12 @@ class SafetyReport:
         return self.status is SafetyStatus.SAFE
 
     @property
+    def clear_for_home(self) -> bool:
+        """Home'a dönmek güvenli mi? Çevrede canlı yok ve platformda araç varsa
+        bölgenin tamamen içinde (sınırı aşmıyor). Boş platformda sadece canlıya bakılır."""
+        return not self.living_nearby and not self.vehicle_crossing
+
+    @property
     def vehicle_secure(self) -> bool:
         """Araç bölgenin içinde ve hiçbir araç sınırı aşmıyor."""
         return self.vehicle_on_platform and not self.vehicle_crossing
